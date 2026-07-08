@@ -1,11 +1,17 @@
 import { z } from "zod";
 import { format } from "date-fns";
 import { createTRPCRouter, protectedProcedure, adminProcedure, securityOrAdminProcedure } from "../trpc";
-import { bookings, users, passengers } from "@/server/db/schema";
-import { eq, and, gte, lte, lt, gt, desc, sql } from "drizzle-orm";
+import { bookings, users, passengers, settings } from "@/server/db/schema";
+import { eq, and, gte, lte, lt, gt, desc, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { broadcastBookingCreated, broadcastBookingCancelled } from "@/server/services/sse";
-import { sendBookingConfirmation, sendBookingCancellation } from "@/server/services/email";
+import {
+  sendBookingConfirmation,
+  sendBookingCancellation,
+  sendPendingBookingApprovalEmail,
+} from "@/server/services/email";
+import { createApprovalToken } from "@/lib/approval-tokens";
+import { defaultSettings } from "./settings";
 
 const passengerInputSchema = z.object({
   id: z.string().optional(), // For existing passengers
@@ -210,16 +216,11 @@ export const bookingsRouter = createTRPCRouter({
         });
       }
 
-      // Allow same-day bookings (only block if the date is before today)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const bookingDate = new Date(start);
-      bookingDate.setHours(0, 0, 0, 0);
-      
-      if (bookingDate < today) {
+      // Block bookings in the past, including earlier times on the same day.
+      if (start <= new Date()) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Cannot book time slots for past dates",
+          message: "Cannot book time slots in the past",
         });
       }
 
@@ -304,6 +305,73 @@ export const bookingsRouter = createTRPCRouter({
           purpose: input.purpose,
           locale: "es", // Default to Spanish, can be made dynamic later
         }).catch((err) => console.error("Failed to send confirmation email:", err));
+      } else {
+        const notificationSetting = await ctx.db.query.settings.findFirst({
+          where: eq(settings.key, "emailNotifications"),
+        });
+        const notificationConfig = notificationSetting
+          ? { ...defaultSettings.emailNotifications, ...JSON.parse(notificationSetting.value) }
+          : defaultSettings.emailNotifications;
+
+        if (notificationConfig.adminNotificationsEnabled) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const envEmailOverride = process.env.APPROVAL_NOTIFICATION_EMAILS
+            ?.split(",")
+            .map((email) => email.trim())
+            .filter(Boolean);
+
+          const approverEmails: string[] = notificationConfig.approverEmails?.length
+            ? notificationConfig.approverEmails
+            : envEmailOverride ?? [];
+
+          const adminUsers = approverEmails.length
+            ? approverEmails.map((email) => ({ email }))
+            : await ctx.db.query.users.findMany({
+                where: and(eq(users.role, "admin"), eq(users.isActive, true)),
+                columns: {
+                  email: true,
+                },
+              });
+
+          const approveToken = await createApprovalToken({
+            bookingId: newBooking.id,
+            action: "approve",
+          });
+          const rejectToken = await createApprovalToken({
+            bookingId: newBooking.id,
+            action: "reject",
+          });
+
+          const approveUrl = `${appUrl}/api/bookings/approval/approve?token=${encodeURIComponent(approveToken)}`;
+          const rejectUrl = `${appUrl}/api/bookings/approval/reject?token=${encodeURIComponent(rejectToken)}`;
+
+          Promise.all(
+            adminUsers.map((adminUser) =>
+              sendPendingBookingApprovalEmail({
+                adminEmail: adminUser.email,
+                userName: `${ctx.session.user.firstName} ${ctx.session.user.lastName}`,
+                userEmail: ctx.session.user.email ?? "",
+                userId: ctx.session.user.id,
+                bookingId: newBooking.id,
+                date: format(start, "EEEE, MMMM d, yyyy"),
+                startTime: format(start, "h:mm a"),
+                endTime: format(end, "h:mm a"),
+                purpose: input.purpose,
+                contactPhone: input.contactPhone,
+                helicopterRegistration: input.helicopterRegistration,
+                passengers: input.passengers.map((passenger) => ({
+                  name: passenger.name,
+                  identificationType: passenger.identificationType,
+                  identificationNumber: passenger.identificationNumber,
+                })),
+                approveUrl,
+                rejectUrl,
+                appUrl: `${appUrl}/admin/bookings`,
+                locale: "es",
+              })
+            )
+          ).catch((err) => console.error("Failed to send approval emails:", err));
+        }
       }
 
       return newBooking;
@@ -377,6 +445,13 @@ export const bookingsRouter = createTRPCRouter({
           });
         }
 
+        if (ctx.session.user.role !== "admin" && start <= new Date()) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cannot book time slots in the past",
+          });
+        }
+
         // Check for conflicts (including 5-minute buffer)
         const BUFFER_MINUTES = 5;
         const endWithBuffer = new Date(end.getTime() + BUFFER_MINUTES * 60 * 1000);
@@ -390,7 +465,7 @@ export const bookingsRouter = createTRPCRouter({
           .from(bookings)
           .where(
             and(
-              eq(bookings.status, "confirmed"),
+              inArray(bookings.status, ["confirmed", "pending"]),
               sql`${bookings.id} != ${id}`,
               lt(bookings.startTime, endWithBuffer),
               gt(sql`datetime(${bookings.endTime}, '+5 minutes')`, start)
@@ -657,7 +732,7 @@ export const bookingsRouter = createTRPCRouter({
         .from(bookings)
         .where(
           and(
-            eq(bookings.status, "confirmed"),
+            inArray(bookings.status, ["confirmed", "pending"]),
             sql`${bookings.id} != ${input.id}`,
             lt(bookings.startTime, endWithBuffer),
             gt(sql`datetime(${bookings.endTime}, '+5 minutes')`, existing.startTime)
@@ -677,8 +752,15 @@ export const bookingsRouter = createTRPCRouter({
           status: "confirmed",
           updatedAt: new Date(),
         })
-        .where(eq(bookings.id, input.id))
+        .where(and(eq(bookings.id, input.id), eq(bookings.status, "pending")))
         .returning();
+
+      if (!approved) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This booking was already processed by someone else",
+        });
+      }
 
       // Broadcast SSE event for real-time calendar updates
       broadcastBookingCreated({
@@ -747,8 +829,15 @@ export const bookingsRouter = createTRPCRouter({
           cancelledBy: ctx.session.user.id,
           updatedAt: new Date(),
         })
-        .where(eq(bookings.id, input.id))
+        .where(and(eq(bookings.id, input.id), eq(bookings.status, "pending")))
         .returning();
+
+      if (!rejected) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This booking was already processed by someone else",
+        });
+      }
 
       // Broadcast SSE event for real-time updates (removes pending booking from non-owner calendars)
       broadcastBookingCancelled({
@@ -831,4 +920,3 @@ export const bookingsRouter = createTRPCRouter({
       };
     }),
 });
-

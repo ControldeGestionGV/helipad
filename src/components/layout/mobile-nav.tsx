@@ -40,14 +40,14 @@ export function MobileNav({ isAdmin, isSecurity }: MobileNavProps) {
               className={cn(
                 "flex flex-col items-center justify-center flex-1 h-full py-2 transition-colors",
                 isActive
-                  ? "text-violet-600"
+                  ? "text-brand-600"
                   : "text-zinc-400 hover:text-zinc-600"
               )}
             >
               <Icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
               <span className="text-[10px] font-medium mt-1">{item.label}</span>
               {isActive && (
-                <div className="absolute bottom-0 w-12 h-0.5 bg-violet-600 rounded-full" />
+                <div className="absolute bottom-0 w-12 h-0.5 bg-brand-600 rounded-full" />
               )}
             </Link>
           );

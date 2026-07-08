@@ -197,6 +197,7 @@
   "passengers": {
     "title": "Passengers",
     "description": "Add all passengers for this flight",
+    "passenger": "Passenger",
     "added": "added",
     "addPassenger": "Add Passenger",
     "addNew": "Add New Passenger",
@@ -399,6 +400,13 @@
         "title": "Admin Notifications",
         "description": "Notify admins of new bookings and cancellations"
       },
+      "approverEmails": {
+        "title": "Booking Approvers",
+        "description": "Emails that receive pending booking requests for approval",
+        "placeholder": "email@example.com",
+        "addEmail": "Add",
+        "fallbackNote": "If no email is added, the notification is sent to all users with the admin role."
+      },
       "reminderTiming": {
         "1hour": "1 hour",
         "2hours": "2 hours",
@@ -464,7 +472,8 @@
     "passwordsDontMatch": "Passwords don't match",
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
-    "currentPasswordRequired": "Current password is required"
+    "currentPasswordRequired": "Current password is required",
+    "atLeastOnePassenger": "At least one passenger is required"
   },
 
   "notifications": {
@@ -584,4 +593,3 @@
     "viewBookingDetails": "View Booking Details"
   }
 }
-

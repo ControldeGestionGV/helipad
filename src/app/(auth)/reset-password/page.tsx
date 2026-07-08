@@ -60,7 +60,7 @@ function ResetPasswordForm() {
   // Loading state
   if (isValidating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-brand-50/30 to-zinc-100 p-4">
         <div className="bg-white rounded-3xl shadow-xl shadow-zinc-200/50 p-8 text-center">
           <Spinner size="lg" />
           <p className="mt-4 text-zinc-500">{t("resetPassword.validatingLink")}</p>
@@ -72,13 +72,13 @@ function ResetPasswordForm() {
   // Invalid or expired token
   if (!token || !validation?.valid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-brand-50/30 to-zinc-100 p-4">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-3xl shadow-xl shadow-zinc-200/50 p-8 text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <XCircle className="w-8 h-8 text-red-600" />
             </div>
-            <h1 className="text-2xl font-bold text-zinc-900 mb-2">
+            <h1 className="text-2xl font-serif font-semibold text-zinc-900 mb-2">
               {t("resetPassword.invalidOrExpiredLink")}
             </h1>
             <p className="text-zinc-500 mb-8">
@@ -104,13 +104,13 @@ function ResetPasswordForm() {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-brand-50/30 to-zinc-100 p-4">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-3xl shadow-xl shadow-zinc-200/50 p-8 text-center">
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-emerald-600" />
             </div>
-            <h1 className="text-2xl font-bold text-zinc-900 mb-2">
+            <h1 className="text-2xl font-serif font-semibold text-zinc-900 mb-2">
               {t("resetPassword.passwordReset")}
             </h1>
             <p className="text-zinc-500 mb-8">
@@ -127,7 +127,7 @@ function ResetPasswordForm() {
 
   // Reset form
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-brand-50/30 to-zinc-100 p-4">
       {/* Language Switcher */}
       <div className="absolute top-4 right-4">
         <LanguageSwitcher variant="compact" />
@@ -137,10 +137,10 @@ function ResetPasswordForm() {
         <div className="bg-white rounded-3xl shadow-xl shadow-zinc-200/50 p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-violet-200">
+            <div className="w-16 h-16 bg-gradient-to-br from-brand-500 to-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-brand-200">
               <Lock className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-zinc-900 mb-2">
+            <h1 className="text-2xl font-serif font-semibold text-zinc-900 mb-2">
               {t("resetPassword.title")}
             </h1>
             <p className="text-zinc-500">
@@ -236,7 +236,7 @@ function ResetPasswordForm() {
 function LoadingFallback() {
   const { t } = useTranslations();
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-violet-50/30 to-zinc-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-50 via-brand-50/30 to-zinc-100 p-4">
       <div className="bg-white rounded-3xl shadow-xl shadow-zinc-200/50 p-8 text-center">
         <Spinner size="lg" />
         <p className="mt-4 text-zinc-500">{t("common.loading")}</p>

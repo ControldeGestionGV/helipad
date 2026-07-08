@@ -194,7 +194,7 @@ export default function EmailSettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("emailSettings.title")}</h1>
+          <h1 className="text-3xl font-serif font-semibold tracking-tight">{t("emailSettings.title")}</h1>
           <p className="mt-2 text-muted-foreground">
             {t("emailSettings.description")}
           </p>

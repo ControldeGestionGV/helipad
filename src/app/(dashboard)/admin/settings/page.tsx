@@ -42,7 +42,9 @@ export default function SettingsPage() {
     reminderEnabled: true,
     reminderHoursBefore: 24,
     adminNotificationsEnabled: true,
+    approverEmails: [] as string[],
   });
+  const [newApproverEmail, setNewApproverEmail] = useState("");
 
   // Update form when settings load
   useEffect(() => {
@@ -53,7 +55,10 @@ export default function SettingsPage() {
       setMaxBookingDuration(settings.maxBookingDuration);
       setCancellationCutoff(settings.cancellationCutoff);
       setBlackoutDates(settings.blackoutDates);
-      setEmailSettings(settings.emailNotifications);
+      setEmailSettings({
+        ...settings.emailNotifications,
+        approverEmails: settings.emailNotifications.approverEmails ?? [],
+      });
     }
   }, [settings]);
 
@@ -119,6 +124,26 @@ export default function SettingsPage() {
     });
   };
 
+  const handleAddApproverEmail = () => {
+    const email = newApproverEmail.trim().toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (isValidEmail && !emailSettings.approverEmails.includes(email)) {
+      setEmailSettings({
+        ...emailSettings,
+        approverEmails: [...emailSettings.approverEmails, email],
+      });
+      setNewApproverEmail("");
+    }
+  };
+
+  const handleRemoveApproverEmail = (email: string) => {
+    setEmailSettings({
+      ...emailSettings,
+      approverEmails: emailSettings.approverEmails.filter((e) => e !== email),
+    });
+  };
+
   const handleAddBlackout = () => {
     if (newBlackoutDate && !blackoutDates.includes(newBlackoutDate)) {
       addBlackoutDate.mutate({ date: newBlackoutDate });
@@ -141,7 +166,7 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">{t("adminSettings.title")}</h1>
+        <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("adminSettings.title")}</h1>
         <p className="text-zinc-500 mt-1">
           {t("adminSettings.description")}
         </p>
@@ -150,8 +175,8 @@ export default function SettingsPage() {
       {/* Operational Hours */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-violet-100 rounded-xl">
-            <Clock className="w-5 h-5 text-violet-600" />
+          <div className="p-2 bg-brand-100 rounded-xl">
+            <Clock className="w-5 h-5 text-brand-600" />
           </div>
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">{t("adminSettings.operationalHours.title")}</h2>
@@ -315,7 +340,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setEmailSettings({ ...emailSettings, confirmationEnabled: e.target.checked })
               }
-              className="h-5 w-5 rounded border-zinc-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+              className="h-5 w-5 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
             />
             <div>
               <p className="font-medium text-zinc-900">{t("adminSettings.emailNotifications.confirmations.title")}</p>
@@ -330,7 +355,7 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setEmailSettings({ ...emailSettings, reminderEnabled: e.target.checked })
               }
-              className="h-5 w-5 rounded border-zinc-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+              className="h-5 w-5 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
             />
             <div className="flex-1">
               <p className="font-medium text-zinc-900">{t("adminSettings.emailNotifications.reminders.title")}</p>
@@ -365,13 +390,66 @@ export default function SettingsPage() {
                   adminNotificationsEnabled: e.target.checked,
                 })
               }
-              className="h-5 w-5 rounded border-zinc-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+              className="h-5 w-5 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
             />
             <div>
               <p className="font-medium text-zinc-900">{t("adminSettings.emailNotifications.adminNotifications.title")}</p>
               <p className="text-sm text-zinc-500">{t("adminSettings.emailNotifications.adminNotifications.description")}</p>
             </div>
           </label>
+
+          <div className={`p-3 rounded-xl border ${emailSettings.adminNotificationsEnabled ? "bg-zinc-50 border-zinc-200" : "bg-zinc-50/50 border-zinc-100 opacity-60"}`}>
+            <p className="font-medium text-zinc-900">{t("adminSettings.emailNotifications.approverEmails.title")}</p>
+            <p className="text-sm text-zinc-500 mb-3">{t("adminSettings.emailNotifications.approverEmails.description")}</p>
+
+            <div className="flex gap-2 mb-3">
+              <Input
+                type="email"
+                value={newApproverEmail}
+                onChange={(e) => setNewApproverEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddApproverEmail();
+                  }
+                }}
+                placeholder={t("adminSettings.emailNotifications.approverEmails.placeholder")}
+                disabled={!emailSettings.adminNotificationsEnabled}
+                className="max-w-xs"
+              />
+              <Button
+                type="button"
+                onClick={handleAddApproverEmail}
+                disabled={!newApproverEmail.trim() || !emailSettings.adminNotificationsEnabled}
+              >
+                <Plus className="w-4 h-4" />
+                {t("adminSettings.emailNotifications.approverEmails.addEmail")}
+              </Button>
+            </div>
+
+            {emailSettings.approverEmails.length > 0 ? (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {emailSettings.approverEmails.map((email) => (
+                  <div
+                    key={email}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-sm"
+                  >
+                    <span className="text-zinc-800">{email}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveApproverEmail(email)}
+                      className="text-zinc-400 hover:text-red-600 cursor-pointer"
+                      disabled={!emailSettings.adminNotificationsEnabled}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <p className="text-xs text-zinc-400">{t("adminSettings.emailNotifications.approverEmails.fallbackNote")}</p>
+          </div>
         </div>
 
         <div className="flex justify-end">

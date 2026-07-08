@@ -197,7 +197,7 @@ export default function MyBookingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{t("myBookings.title")}</h1>
+          <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("myBookings.title")}</h1>
           <p className="text-zinc-500 mt-1">
             {t("myBookings.description")}
           </p>
@@ -218,7 +218,7 @@ export default function MyBookingsPage() {
           className={cn(
             "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
             activeTab === "upcoming"
-              ? "border-violet-600 text-violet-600"
+              ? "border-brand-600 text-brand-600"
               : "border-transparent text-zinc-500 hover:text-zinc-900"
           )}
         >
@@ -230,7 +230,7 @@ export default function MyBookingsPage() {
           className={cn(
             "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
             activeTab === "past"
-              ? "border-violet-600 text-violet-600"
+              ? "border-brand-600 text-brand-600"
               : "border-transparent text-zinc-500 hover:text-zinc-900"
           )}
         >
@@ -281,7 +281,7 @@ export default function MyBookingsPage() {
               <div key={booking.id} className="relative">
                 {cancellingId === booking.id && (
                   <div className="absolute inset-0 bg-white/80 rounded-xl flex items-center justify-center z-10">
-                    <Loader2 className="w-6 h-6 animate-spin text-violet-600" />
+                    <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
                   </div>
                 )}
                 <BookingCard

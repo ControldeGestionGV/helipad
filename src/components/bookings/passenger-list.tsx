@@ -45,7 +45,7 @@ export function PassengerList({ bookingId, isOwnerOrAdmin }: PassengerListProps)
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Users className="w-5 h-5 text-violet-600" />
+        <Users className="w-5 h-5 text-brand-600" />
         <h4 className="text-sm font-semibold text-zinc-900">
           {t("passengers.title")} ({passengers.length})
         </h4>

@@ -280,7 +280,7 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{t("calendarPage.title")}</h1>
+          <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("calendarPage.title")}</h1>
           <p className="text-zinc-500 mt-1">
             {t("calendarPage.description")}
           </p>
@@ -349,7 +349,7 @@ export default function CalendarPage() {
       {/* Legend */}
       <div className="flex items-center gap-6 text-sm flex-wrap">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-violet-100 border border-violet-300" />
+          <div className="w-4 h-4 rounded bg-brand-100 border border-brand-300" />
           <span className="text-zinc-600">{t("calendarPage.legend.myBookings")}</span>
         </div>
         <div className="flex items-center gap-2">

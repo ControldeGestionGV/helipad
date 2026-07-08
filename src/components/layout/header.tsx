@@ -103,7 +103,7 @@ export function Header({ user }: HeaderProps) {
               className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-zinc-100 transition-colors"
               onClick={() => setProfileMenuOpen(!profileMenuOpen)}
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-violet-500 flex items-center justify-center text-white text-sm font-semibold">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-brand-500 flex items-center justify-center text-white text-sm font-semibold">
                 {user.firstName[0]}
                 {user.lastName[0]}
               </div>
@@ -160,7 +160,7 @@ export function Header({ user }: HeaderProps) {
           <div className="fixed inset-y-0 left-0 w-full max-w-xs bg-white animate-slide-in-right">
             <div className="flex items-center justify-between h-16 px-4 border-b border-zinc-100">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 text-white flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-600 text-white flex items-center justify-center">
                   <Plane className="w-4 h-4" />
                 </div>
                 <span className="font-bold text-zinc-900">Helipad</span>
@@ -190,7 +190,7 @@ export function Header({ user }: HeaderProps) {
                           className={cn(
                             "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                             isActive
-                              ? "bg-violet-50 text-violet-700"
+                              ? "bg-brand-50 text-brand-700"
                               : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                           )}
                           onClick={() => setMobileMenuOpen(false)}
@@ -220,7 +220,7 @@ export function Header({ user }: HeaderProps) {
                             className={cn(
                               "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                               isActive
-                                ? "bg-violet-50 text-violet-700"
+                                ? "bg-brand-50 text-brand-700"
                                 : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                             )}
                             onClick={() => setMobileMenuOpen(false)}

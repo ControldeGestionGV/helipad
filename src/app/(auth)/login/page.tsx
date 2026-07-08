@@ -72,11 +72,13 @@ function LoginForm() {
               priority
               className="object-contain"
             />
-          <h3 className="text-lg text-zinc-900">Helipad</h3>
+          <h3 className="text-lg font-serif tracking-wide text-brand-800">
+            Heli<span className="italic text-gold-600">pad</span>
+          </h3>
 
           </div>
           
-          <h1 className="text-2xl font-bold text-zinc-900">{t("auth.welcomeBack")}</h1>
+          <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("auth.welcomeBack")}</h1>
           <p className="text-zinc-500 mt-1">{t("auth.signInToManage")}</p>
         </div>
 
@@ -101,7 +103,7 @@ function LoginForm() {
               type="text"
               autoComplete="username"
               disabled={isLoading}
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-colors disabled:opacity-50"
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors disabled:opacity-50"
               placeholder={t("auth.enterUsername")}
             />
             {errors.username && (
@@ -119,7 +121,7 @@ function LoginForm() {
               </label>
               <Link
                 href="/forgot-password"
-                className="text-sm text-violet-600 hover:text-violet-700 transition-colors"
+                className="text-sm text-brand-600 hover:text-brand-700 transition-colors"
               >
                 {t("auth.forgotPassword")}
               </Link>
@@ -130,7 +132,7 @@ function LoginForm() {
               type="password"
               autoComplete="current-password"
               disabled={isLoading}
-              className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-colors disabled:opacity-50"
+              className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors disabled:opacity-50"
               placeholder={t("auth.enterPassword")}
             />
             {errors.password && (
@@ -141,7 +143,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 px-4 bg-gradient-to-r from-violet-500 to-violet-600 text-white font-semibold rounded-xl shadow-lg shadow-violet-200 hover:from-violet-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold rounded-xl shadow-lg shadow-brand-200 hover:from-brand-600 hover:to-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
@@ -171,7 +173,7 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
       </div>
     }>
       <LoginForm />

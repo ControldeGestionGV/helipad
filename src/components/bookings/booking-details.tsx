@@ -71,8 +71,13 @@ export function BookingDetails({
   const startTime = new Date(booking.startTime);
   const endTime = new Date(booking.endTime);
   const isPast = endTime < new Date();
-  const canModify = (isOwner || isAdmin) && !isPast && booking.status === "confirmed";
   const isPending = booking.status === "pending";
+  const isCancelled = booking.status === "cancelled";
+  // Mirrors the server-side rules in bookings.ts: admins can always edit;
+  // owners can only edit their own booking while it's still pending and upcoming.
+  const canEdit = isAdmin || (isOwner && !isPast && isPending);
+  // Mirrors cancel(): owner or admin can cancel anything that isn't already cancelled.
+  const canCancel = (isOwner || isAdmin) && !isCancelled;
   const canApproveReject = isAdmin && isPending && !isPast;
 
   const statusLabels: Record<string, string> = {
@@ -108,7 +113,7 @@ export function BookingDetails({
           {/* Date & Time */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
-              <Calendar className="w-5 h-5 text-violet-600 mt-0.5" />
+              <Calendar className="w-5 h-5 text-brand-600 mt-0.5" />
               <div>
                 <p className="text-xs text-zinc-500 font-medium uppercase">{t("bookingDetails.date")}</p>
                 <p className="text-sm font-semibold text-zinc-900">
@@ -117,7 +122,7 @@ export function BookingDetails({
               </div>
             </div>
             <div className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
-              <Clock className="w-5 h-5 text-violet-600 mt-0.5" />
+              <Clock className="w-5 h-5 text-brand-600 mt-0.5" />
               <div>
                 <p className="text-xs text-zinc-500 font-medium uppercase">{t("bookingDetails.time")}</p>
                 <p className="text-sm font-semibold text-zinc-900">
@@ -130,7 +135,7 @@ export function BookingDetails({
           {/* User info */}
           {booking.user && (
             <div className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
-              <User className="w-5 h-5 text-violet-600 mt-0.5" />
+              <User className="w-5 h-5 text-brand-600 mt-0.5" />
               <div>
                 <p className="text-xs text-zinc-500 font-medium uppercase">{t("bookingDetails.bookedBy")}</p>
                 <p className="text-sm font-semibold text-zinc-900">
@@ -145,7 +150,7 @@ export function BookingDetails({
 
           {/* Purpose */}
           <div className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
-            <FileText className="w-5 h-5 text-violet-600 mt-0.5" />
+            <FileText className="w-5 h-5 text-brand-600 mt-0.5" />
             <div>
               <p className="text-xs text-zinc-500 font-medium uppercase">{t("bookingDetails.purpose")}</p>
               <p className="text-sm text-zinc-900">{booking.purpose}</p>
@@ -163,7 +168,7 @@ export function BookingDetails({
           {/* Contact phone */}
           {booking.contactPhone && (
             <div className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
-              <Phone className="w-5 h-5 text-violet-600 mt-0.5" />
+              <Phone className="w-5 h-5 text-brand-600 mt-0.5" />
               <div>
                 <p className="text-xs text-zinc-500 font-medium uppercase">{t("bookingDetails.contact")}</p>
                 <p className="text-sm font-semibold text-zinc-900">
@@ -175,11 +180,11 @@ export function BookingDetails({
 
           {/* Helicopter Registration */}
           {booking.helicopterRegistration && (
-            <div className="flex items-start gap-3 p-3 bg-violet-50 rounded-xl">
-              <Plane className="w-5 h-5 text-violet-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-brand-50 rounded-xl">
+              <Plane className="w-5 h-5 text-brand-600 mt-0.5" />
               <div>
-                <p className="text-xs text-violet-600 font-medium uppercase">{t("bookingDetails.helicopterRegistration")}</p>
-                <p className="text-sm font-semibold text-violet-900">
+                <p className="text-xs text-brand-600 font-medium uppercase">{t("bookingDetails.helicopterRegistration")}</p>
+                <p className="text-sm font-semibold text-brand-900">
                   {booking.helicopterRegistration}
                 </p>
               </div>
@@ -238,34 +243,36 @@ export function BookingDetails({
             </>
           )}
           
-          {/* Edit/Cancel buttons for confirmed bookings */}
-          {canModify && (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onEdit();
-                }}
-              >
-                {t("common.edit")}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={onCancel}
-                disabled={isCancelling}
-              >
-                {isCancelling ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <X className="w-4 h-4" />
-                )}
-                {t("bookingDetails.cancelBooking")}
-              </Button>
-            </>
+          {/* Edit button: admins always; owners only while pending and upcoming */}
+          {canEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              {t("common.edit")}
+            </Button>
+          )}
+
+          {/* Cancel button: owner or admin, on anything not already cancelled */}
+          {canCancel && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={onCancel}
+              disabled={isCancelling}
+            >
+              {isCancelling ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <X className="w-4 h-4" />
+              )}
+              {t("bookingDetails.cancelBooking")}
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

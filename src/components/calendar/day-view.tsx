@@ -74,8 +74,8 @@ export function DayView({
   return (
     <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="p-4 bg-violet-50 border-b border-violet-100">
-        <h3 className="font-semibold text-violet-900">
+      <div className="p-4 bg-brand-50 border-b border-brand-100">
+        <h3 className="font-semibold text-brand-900">
           {format(date, "EEEE, MMMM d, yyyy", { locale: dateLocale })}
         </h3>
       </div>
@@ -136,7 +136,7 @@ export function DayView({
                           booking.status === "pending"
                             ? "bg-amber-100 border-2 border-amber-300 border-dashed"
                             : isOwnBooking
-                            ? "bg-violet-100"
+                            ? "bg-brand-100"
                             : isAdmin || isSecurity
                             ? "bg-blue-100"
                             : "bg-zinc-100"
@@ -167,7 +167,7 @@ export function DayView({
                         booking.status === "pending"
                           ? "bg-amber-100 text-amber-800 border-2 border-amber-300 border-dashed hover:ring-2 hover:ring-offset-1 hover:ring-amber-400 cursor-pointer active:ring-2 active:ring-amber-400"
                           : isOwnBooking
-                          ? "bg-violet-100 text-violet-800 hover:ring-2 hover:ring-offset-1 hover:ring-violet-300 cursor-pointer active:ring-2 active:ring-violet-300"
+                          ? "bg-brand-100 text-brand-800 hover:ring-2 hover:ring-offset-1 hover:ring-brand-300 cursor-pointer active:ring-2 active:ring-brand-300"
                           : isAdmin || isSecurity
                           ? "bg-blue-100 text-blue-800 hover:ring-2 hover:ring-offset-1 hover:ring-blue-300 cursor-pointer active:ring-2 active:ring-blue-300"
                           : "bg-zinc-100 text-zinc-700 cursor-not-allowed opacity-60"

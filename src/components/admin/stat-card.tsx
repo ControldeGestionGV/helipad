@@ -15,9 +15,9 @@ interface StatCardProps {
 
 const colorClasses = {
   violet: {
-    bg: "bg-violet-50",
-    icon: "bg-violet-100 text-violet-600",
-    trend: "text-violet-600",
+    bg: "bg-brand-50",
+    icon: "bg-brand-100 text-brand-600",
+    trend: "text-brand-600",
   },
   emerald: {
     bg: "bg-emerald-50",

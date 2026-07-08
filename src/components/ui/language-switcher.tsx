@@ -50,7 +50,7 @@ export function LanguageSwitcher({ className, variant = "default" }: LanguageSwi
                 className={cn(
                   "w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors cursor-pointer",
                   locale === loc
-                    ? "bg-violet-50 text-violet-700 font-medium"
+                    ? "bg-brand-50 text-brand-700 font-medium"
                     : "text-zinc-700 hover:bg-zinc-50"
                 )}
               >

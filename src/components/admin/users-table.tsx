@@ -83,7 +83,7 @@ export function UsersTable({
                     if (el) el.indeterminate = isSomeSelected;
                   }}
                   onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                  className="h-4 w-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
                 />
               </TableHead>
             )}
@@ -111,13 +111,13 @@ export function UsersTable({
                       type="checkbox"
                       checked={selectedIds.includes(user.id)}
                       onChange={() => toggleSelect(user.id)}
-                      className="h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
+                      className="h-4 w-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-500"
                     />
                   </TableCell>
                 )}
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-400 to-violet-500 flex items-center justify-center text-white text-sm font-semibold">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-500 flex items-center justify-center text-white text-sm font-semibold">
                       {user.firstName[0]}
                       {user.lastName[0]}
                     </div>

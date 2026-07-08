@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/bookings/calendar",
     display: "standalone",
     background_color: "#fafafa",
-    theme_color: "#7c3aed",
+    theme_color: "#1E2158",
     orientation: "portrait-primary",
     categories: ["business", "productivity"],
     icons: [

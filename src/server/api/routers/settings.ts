@@ -4,7 +4,7 @@ import { settings } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 
 // Default settings values
-const defaultSettings = {
+export const defaultSettings = {
   operationalHours: {
     start: "06:00",
     end: "22:00",
@@ -19,10 +19,29 @@ const defaultSettings = {
     reminderEnabled: true,
     reminderHoursBefore: 24,
     adminNotificationsEnabled: true,
+    approverEmails: [] as string[],
   },
 };
 
 export type AppSettings = typeof defaultSettings;
+
+// Merges a stored setting value with its default so newly added fields
+// (like emailNotifications.approverEmails) don't come back undefined
+// for settings rows saved before the field existed.
+function mergeWithDefault<T>(defaultValue: T, storedValue: unknown): T {
+  if (
+    typeof defaultValue === "object" &&
+    defaultValue !== null &&
+    !Array.isArray(defaultValue) &&
+    typeof storedValue === "object" &&
+    storedValue !== null &&
+    !Array.isArray(storedValue)
+  ) {
+    return { ...defaultValue, ...storedValue };
+  }
+
+  return storedValue as T;
+}
 
 export const settingsRouter = createTRPCRouter({
   /**
@@ -35,13 +54,13 @@ export const settingsRouter = createTRPCRouter({
         where: eq(settings.key, input.key),
       });
 
+      const defaultValue = defaultSettings[input.key as keyof AppSettings];
+
       if (!setting) {
-        // Return default if exists
-        const defaultValue = defaultSettings[input.key as keyof AppSettings];
         return defaultValue !== undefined ? defaultValue : null;
       }
 
-      return JSON.parse(setting.value);
+      return mergeWithDefault(defaultValue, JSON.parse(setting.value));
     }),
 
   /**
@@ -55,7 +74,11 @@ export const settingsRouter = createTRPCRouter({
     
     for (const setting of allSettings) {
       try {
-        settingsMap[setting.key as keyof AppSettings] = JSON.parse(setting.value);
+        const key = setting.key as keyof AppSettings;
+        (settingsMap as Record<string, unknown>)[key] = mergeWithDefault(
+          defaultSettings[key],
+          JSON.parse(setting.value)
+        );
       } catch {
         // Keep default if JSON parse fails
       }

@@ -197,6 +197,7 @@
   "passengers": {
     "title": "Pasajeros",
     "description": "Agregue todos los pasajeros para este vuelo",
+    "passenger": "Pasajero",
     "added": "agregados",
     "addPassenger": "Agregar Pasajero",
     "addNew": "Agregar Nuevo Pasajero",
@@ -400,6 +401,13 @@
         "title": "Notificaciones de Administrador",
         "description": "Notificar a los administradores sobre nuevas reservas y cancelaciones"
       },
+      "approverEmails": {
+        "title": "Aprobadores de Reservas",
+        "description": "Correos que reciben las solicitudes de reserva pendientes de aprobación",
+        "placeholder": "correo@ejemplo.com",
+        "addEmail": "Agregar",
+        "fallbackNote": "Si no se agrega ningún correo, la notificación se enviará a todos los usuarios con rol de administrador."
+      },
       "reminderTiming": {
         "1hour": "1 hora",
         "2hours": "2 horas",
@@ -465,7 +473,8 @@
     "passwordsDontMatch": "Las contraseñas no coinciden",
     "firstNameRequired": "El nombre es requerido",
     "lastNameRequired": "El apellido es requerido",
-    "currentPasswordRequired": "La contraseña actual es requerida"
+    "currentPasswordRequired": "La contraseña actual es requerida",
+    "atLeastOnePassenger": "Se requiere al menos un pasajero"
   },
 
   "notifications": {
@@ -585,4 +594,3 @@
     "viewBookingDetails": "Ver Detalles de Reserva"
   }
 }
-

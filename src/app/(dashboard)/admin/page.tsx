@@ -37,7 +37,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">{t("adminDashboard.title")}</h1>
+        <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("adminDashboard.title")}</h1>
         <p className="text-zinc-500 mt-1">
           {t("adminDashboard.description")}
         </p>
@@ -143,7 +143,7 @@ export default function AdminDashboardPage() {
       {/* Popular Time Slots */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
-          <Clock className="w-5 h-5 text-violet-500" />
+          <Clock className="w-5 h-5 text-brand-500" />
           <h3 className="text-sm font-medium text-zinc-500">{t("adminDashboard.popularTimeSlotsMonth")}</h3>
         </div>
 
@@ -154,7 +154,7 @@ export default function AdminDashboardPage() {
                 key={slot.hour}
                 className={`
                   px-4 py-2 rounded-xl text-sm font-medium
-                  ${index === 0 ? "bg-violet-100 text-violet-800" :
+                  ${index === 0 ? "bg-brand-100 text-brand-800" :
                     "bg-zinc-100 text-zinc-700"}
                 `}
               >

@@ -45,7 +45,7 @@ export function BookingCard({
           ? "border-yellow-200 bg-yellow-50/30"
           : isPast
           ? "border-zinc-200 opacity-75"
-          : "border-zinc-200 hover:border-violet-200"
+          : "border-zinc-200 hover:border-brand-200"
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -78,7 +78,7 @@ export function BookingCard({
 
           {/* Time */}
           <div className="flex items-center gap-2 text-zinc-900 mb-2">
-            <Clock className="w-4 h-4 text-violet-600" />
+            <Clock className="w-4 h-4 text-brand-600" />
             <span className="font-semibold">
               {format(startTime, "h:mm a")} - {format(endTime, "h:mm a")}
             </span>

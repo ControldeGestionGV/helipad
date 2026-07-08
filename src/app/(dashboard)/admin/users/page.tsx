@@ -160,7 +160,7 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{t("adminUsers.title")}</h1>
+          <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("adminUsers.title")}</h1>
           <p className="text-zinc-500 mt-1">
             {t("adminUsers.description")}
           </p>
@@ -221,7 +221,7 @@ export default function UsersPage() {
 
       {/* Bulk actions */}
       {!isReadOnly && selectedIds.length > 0 && (
-        <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-xl animate-fade-in">
+        <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-xl animate-fade-in">
           <Badge variant="default">{selectedIds.length} {t("common.selected")}</Badge>
           <div className="flex gap-2">
             <Button

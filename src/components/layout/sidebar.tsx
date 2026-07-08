@@ -7,6 +7,7 @@ import {
   ListOrdered,
   Users,
   ClipboardList,
+  ClipboardCheck,
   Settings,
   Plane,
   LayoutDashboard,
@@ -37,6 +38,7 @@ export function Sidebar({ user }: SidebarProps) {
     ],
     admin: [
       { label: t("navigation.dashboard"), href: ROUTES.adminDashboard, icon: LayoutDashboard },
+      { label: "Operacion de Hoy", href: ROUTES.adminOperation, icon: ClipboardCheck },
       { label: t("navigation.users"), href: ROUTES.adminUsers, icon: Users },
       { label: t("navigation.allBookings"), href: ROUTES.adminBookings, icon: ClipboardList },
       { label: t("navigation.settings"), href: ROUTES.adminSettings, icon: Settings },
@@ -74,10 +76,10 @@ export function Sidebar({ user }: SidebarProps) {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors border-l-2",
                       isActive
-                        ? "bg-violet-50 text-violet-700"
-                        : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                        ? "bg-brand-50 text-brand-700 border-gold-500"
+                        : "border-transparent text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                     )}
                   >
                     <Icon className="w-5 h-5" />
@@ -106,7 +108,7 @@ export function Sidebar({ user }: SidebarProps) {
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors",
                         isActive
-                          ? "bg-violet-50 text-violet-700"
+                          ? "bg-brand-50 text-brand-700"
                           : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                       )}
                     >
@@ -124,7 +126,7 @@ export function Sidebar({ user }: SidebarProps) {
       {/* User info */}
       <div className="p-4 border-t border-zinc-100">
         <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-400 to-violet-500 flex items-center justify-center text-white text-sm font-semibold">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-500 flex items-center justify-center text-white text-sm font-semibold">
             {user.firstName[0]}
             {user.lastName[0]}
           </div>
@@ -139,4 +141,3 @@ export function Sidebar({ user }: SidebarProps) {
     </div>
   );
 }
-

@@ -114,7 +114,7 @@ export function MonthView({
                 className={cn(
                   "w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium mb-1",
                   isToday(day)
-                    ? "bg-violet-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : isCurrentMonth
                     ? "text-zinc-900"
                     : "text-zinc-400"
@@ -151,7 +151,7 @@ export function MonthView({
                         booking.status === "pending"
                           ? "bg-amber-100 text-amber-800 border border-amber-300 border-dashed hover:ring-1 hover:ring-amber-400 cursor-pointer active:ring-1 active:ring-amber-400"
                           : isOwnBooking
-                          ? "bg-violet-100 text-violet-800 hover:ring-1 hover:ring-violet-300 cursor-pointer active:ring-1 active:ring-violet-300"
+                          ? "bg-brand-100 text-brand-800 hover:ring-1 hover:ring-brand-300 cursor-pointer active:ring-1 active:ring-brand-300"
                           : isAdmin || isSecurity
                           ? "bg-blue-100 text-blue-800 hover:ring-1 hover:ring-blue-300 cursor-pointer active:ring-1 active:ring-blue-300"
                           : "bg-zinc-100 text-zinc-700 cursor-not-allowed opacity-60"

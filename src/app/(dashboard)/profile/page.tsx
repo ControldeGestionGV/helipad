@@ -104,14 +104,14 @@ export default function ProfilePage() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">{t("profile.title")}</h1>
+        <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("profile.title")}</h1>
         <p className="text-zinc-500 mt-1">{t("profile.description")}</p>
       </div>
 
       {/* User card */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-400 to-violet-500 flex items-center justify-center text-white text-xl font-bold">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-500 flex items-center justify-center text-white text-xl font-bold">
             {session?.user?.firstName?.[0]}
             {session?.user?.lastName?.[0]}
           </div>
@@ -136,7 +136,7 @@ export default function ProfilePage() {
           onClick={() => setActiveTab("profile")}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
             activeTab === "profile"
-              ? "border-violet-600 text-violet-600"
+              ? "border-brand-600 text-brand-600"
               : "border-transparent text-zinc-500 hover:text-zinc-900"
           }`}
         >
@@ -147,7 +147,7 @@ export default function ProfilePage() {
           onClick={() => setActiveTab("security")}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
             activeTab === "security"
-              ? "border-violet-600 text-violet-600"
+              ? "border-brand-600 text-brand-600"
               : "border-transparent text-zinc-500 hover:text-zinc-900"
           }`}
         >

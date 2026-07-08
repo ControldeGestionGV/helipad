@@ -49,6 +49,40 @@ async function getEmailConfig() {
     where: eq(emailConfigurations.isActive, true),
   });
 
+  const envSmtpConfig =
+    process.env.SMTP_HOST && (process.env.SMTP_AUTH_REQUIRED === "false" || (process.env.SMTP_USER && process.env.SMTP_PASSWORD))
+      ? {
+          id: process.env.SMTP_AUTH_REQUIRED === "false" ? "env-smtp-relay" : "env-smtp",
+          provider: "smtp",
+          smtpHost: process.env.SMTP_HOST,
+          smtpPort: parseInt(process.env.SMTP_PORT || (process.env.SMTP_AUTH_REQUIRED === "false" ? "25" : "587"), 10),
+          smtpSecure: process.env.SMTP_SECURE === "true",
+          smtpUser: process.env.SMTP_AUTH_REQUIRED === "false" ? null : process.env.SMTP_USER,
+          smtpPassword: process.env.SMTP_AUTH_REQUIRED === "false" ? null : process.env.SMTP_PASSWORD,
+          fromEmail: process.env.EMAIL_FROM || process.env.SMTP_USER || "noreply@localhost",
+          fromName: process.env.EMAIL_FROM_NAME || APP_NAME,
+          resendApiKey: null,
+          azureTenantId: null,
+          azureClientId: null,
+          mailboxSender: null,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      : null;
+
+  if (!config) {
+    return envSmtpConfig;
+  }
+
+  if (
+    config.provider === "smtp" &&
+    (!config.smtpHost || !config.smtpPort || !config.smtpUser || !config.smtpPassword) &&
+    envSmtpConfig
+  ) {
+    return envSmtpConfig;
+  }
+
   return config;
 }
 
@@ -57,22 +91,32 @@ async function getEmailConfig() {
  */
 async function getNodemailerTransporter(config: any): Promise<Transporter | null> {
   try {
-    if (!config.smtpHost || !config.smtpPort || !config.smtpUser || !config.smtpPassword) {
+    if (!config.smtpHost || !config.smtpPort) {
       console.log("[Email] SMTP configuration incomplete");
       return null;
     }
+
+    const auth =
+      config.smtpUser && config.smtpPassword
+        ? {
+            user: config.smtpUser,
+            pass: config.smtpPassword,
+          }
+        : undefined;
 
     const transporter = nodemailer.createTransport({
       host: config.smtpHost,
       port: config.smtpPort,
       secure: config.smtpSecure ?? true,
-      auth: {
-        user: config.smtpUser,
-        pass: config.smtpPassword,
-      },
+      auth,
+      requireTLS: process.env.SMTP_REQUIRE_TLS === "true",
+      tls:
+        process.env.SMTP_TLS_REJECT_UNAUTHORIZED === "false"
+          ? { rejectUnauthorized: false }
+          : undefined,
     });
 
-    console.log(`[Email] SMTP transporter created for ${config.smtpHost}`);
+    console.log(`[Email] SMTP transporter created for ${config.smtpHost}${auth ? "" : " without auth"}`);
     return transporter;
   } catch (error) {
     console.error("[Email] Failed to create SMTP transporter:", error);
@@ -162,15 +206,33 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   };
 
   try {
+    if (process.env.EMAIL_DEV_MODE === "console") {
+      console.log("\n[Email Dev Mode]");
+      console.log(`To: ${to}`);
+      console.log(`Subject: ${subject}`);
+      console.log(`Type: ${type}`);
+
+      const links = Array.from(html.matchAll(/href="([^"]+)"/g)).map((match) => match[1]);
+      if (links.length > 0) {
+        console.log("Links:");
+        links.forEach((link) => console.log(`  ${link}`));
+      }
+
+      console.log("[Email Dev Mode] End\n");
+      await logEmail("sent");
+      return true;
+    }
+
     const { mailer, config, provider } = await getMailer();
 
     // If no mailer configured, log and skip
     if (!mailer) {
-      console.log(`[Email] Email service not configured. Would send to ${to}:`);
-      console.log(`  Subject: ${subject}`);
-      console.log(`  Type: ${type}`);
-      await logEmail("sent"); // Log as sent for dev purposes
-      return true;
+      const error = "Email service not configured";
+      console.warn(`[Email] ${error}. Could not send to ${to}.`);
+      console.warn(`  Subject: ${subject}`);
+      console.warn(`  Type: ${type}`);
+      await logEmail("failed", error);
+      return false;
     }
 
     // Microsoft Graph mailer
@@ -196,6 +258,10 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
       });
 
       console.log(`[Email] Sent ${type} email to ${to} via SMTP. Message ID: ${info.messageId}`);
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      if (previewUrl) {
+        console.log(`[Email] Preview URL: ${previewUrl}`);
+      }
       await logEmail("sent");
       return true;
     }
@@ -263,6 +329,110 @@ interface BookingEmailData {
   endTime: string;
   purpose: string;
   locale?: string; // Default to 'en' if not provided
+}
+
+interface PendingBookingApprovalData extends BookingEmailData {
+  adminEmail: string;
+  approveUrl: string;
+  rejectUrl: string;
+  appUrl: string;
+  contactPhone?: string | null;
+  helicopterRegistration?: string | null;
+  passengers: Array<{
+    name: string;
+    identificationType: "cedula" | "passport" | "other";
+    identificationNumber: string;
+  }>;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+export async function sendPendingBookingApprovalEmail(data: PendingBookingApprovalData): Promise<boolean> {
+  const passengersHtml = data.passengers.length
+    ? data.passengers
+        .map(
+          (passenger, index) => `
+            <tr>
+              <td style="padding: 6px 0; color: #18181b; font-size: 14px;">
+                ${index + 1}. ${escapeHtml(passenger.name)}
+              </td>
+              <td style="padding: 6px 0; color: #52525b; font-size: 14px;">
+                ${escapeHtml(passenger.identificationType)} ${escapeHtml(passenger.identificationNumber)}
+              </td>
+            </tr>`
+        )
+        .join("")
+    : `<tr><td style="padding: 6px 0; color: #71717a; font-size: 14px;">Sin pasajeros registrados</td></tr>`;
+
+  const correctionSubject = encodeURIComponent(`Correccion requerida para reserva ${data.bookingId}`);
+  const correctionBody = encodeURIComponent(
+    `Hola ${data.userName},\n\nNecesitamos corregir algunos datos de tu solicitud de reserva del helipuerto para ${data.date} de ${data.startTime} a ${data.endTime}.\n\nPor favor revisa la informacion y responde a este correo.\n\nGracias.`
+  );
+
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Nueva reserva pendiente</h2>
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      Hay una nueva solicitud de reserva del helipuerto esperando aprobacion.
+    </p>
+
+    <div style="background-color: #f4f4f5; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Solicitante</td>
+          <td style="padding: 8px 0; color: #18181b; font-size: 14px; font-weight: 600;">${escapeHtml(data.userName)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Fecha</td>
+          <td style="padding: 8px 0; color: #18181b; font-size: 14px; font-weight: 600;">${escapeHtml(data.date)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Hora</td>
+          <td style="padding: 8px 0; color: #18181b; font-size: 14px; font-weight: 600;">${escapeHtml(data.startTime)} - ${escapeHtml(data.endTime)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Matricula</td>
+          <td style="padding: 8px 0; color: #18181b; font-size: 14px; font-weight: 600;">${escapeHtml(data.helicopterRegistration || "-")}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Telefono</td>
+          <td style="padding: 8px 0; color: #18181b; font-size: 14px;">${escapeHtml(data.contactPhone || "-")}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Proposito</td>
+          <td style="padding: 8px 0; color: #18181b; font-size: 14px;">${escapeHtml(data.purpose)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <h3 style="margin: 0 0 8px; color: #18181b; font-size: 16px;">Pasajeros</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+      ${passengersHtml}
+    </table>
+
+    <div style="margin-bottom: 24px;">
+      <a href="${data.approveUrl}" style="display: inline-block; background: #16a34a; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 8px 8px 0;">Aprobar</a>
+      <a href="${data.rejectUrl}" style="display: inline-block; background: #dc2626; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 8px 8px 0;">Rechazar</a>
+      <a href="mailto:${data.userEmail}?subject=${correctionSubject}&body=${correctionBody}" style="display: inline-block; background: #f59e0b; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 8px 8px 0;">Pedir correccion</a>
+    </div>
+
+    <a href="${data.appUrl}" style="color: #7c3aed; text-decoration: none; font-weight: 600;">Ver en la app</a>
+  `;
+
+  return sendEmail({
+    to: data.adminEmail,
+    subject: `Nueva reserva pendiente - ${data.date}`,
+    html: baseTemplate(content),
+    userId: data.userId,
+    bookingId: data.bookingId,
+    type: "confirmation",
+  });
 }
 
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<boolean> {

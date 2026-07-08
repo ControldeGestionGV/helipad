@@ -169,7 +169,7 @@ export default function AdminBookingsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{t("adminBookings.title")}</h1>
+          <h1 className="text-2xl font-serif font-semibold text-zinc-900">{t("adminBookings.title")}</h1>
           <p className="text-zinc-500 mt-1">
             {t("adminBookings.description")}
           </p>
@@ -194,7 +194,7 @@ export default function AdminBookingsPage() {
           {hasFilters && (
             <button
               onClick={handleClearFilters}
-              className="text-xs text-violet-600 hover:text-violet-700 ml-auto cursor-pointer"
+              className="text-xs text-brand-600 hover:text-brand-700 ml-auto cursor-pointer"
             >
               {t("common.clearAll")}
             </button>
@@ -336,7 +336,7 @@ export default function AdminBookingsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                          className="text-brand-600 hover:text-brand-700 hover:bg-brand-50"
                           onClick={() => setSelectedBookingDetails(booking)}
                         >
                           <Eye className="w-4 h-4" />
@@ -475,16 +475,16 @@ export default function AdminBookingsPage() {
                   {t("adminBookings.bookingInformation")}
                 </h3>
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 bg-violet-50 rounded-lg">
-                    <Calendar className="w-5 h-5 text-violet-600 mt-0.5" />
+                  <div className="flex items-start gap-3 p-3 bg-brand-50 rounded-lg">
+                    <Calendar className="w-5 h-5 text-brand-600 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-xs text-violet-600 font-medium">
+                      <p className="text-xs text-brand-600 font-medium">
                         {t("adminBookings.dateTime")}
                       </p>
-                      <p className="text-sm font-semibold text-violet-900">
+                      <p className="text-sm font-semibold text-brand-900">
                         {format(new Date(selectedBookingDetails.startTime!), "EEEE, MMMM d, yyyy", { locale: dateLocale })}
                       </p>
-                      <p className="text-sm text-violet-700">
+                      <p className="text-sm text-brand-700">
                         {format(new Date(selectedBookingDetails.startTime!), "h:mm a")} - {format(new Date(selectedBookingDetails.endTime!), "h:mm a")}
                       </p>
                     </div>

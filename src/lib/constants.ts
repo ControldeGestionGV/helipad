@@ -35,7 +35,7 @@ export const STATUS_COLORS = {
 
 // Role colors
 export const ROLE_COLORS = {
-  admin: "bg-purple-100 text-purple-800",
+  admin: "bg-brand-100 text-brand-800",
   user: "bg-blue-100 text-blue-800",
 } as const;
 
@@ -48,6 +48,7 @@ export const ROUTES = {
   myBookings: "/bookings/my-bookings",
   newBooking: "/bookings/new",
   adminDashboard: "/admin",
+  adminOperation: "/admin/operation",
   adminUsers: "/admin/users",
   adminBookings: "/admin/bookings",
   adminSettings: "/admin/settings",
@@ -66,4 +67,3 @@ export const NAV_ITEMS = {
     { label: "Settings", href: ROUTES.adminSettings, icon: "Settings" },
   ],
 } as const;
-

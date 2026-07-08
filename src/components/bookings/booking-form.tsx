@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, addMinutes, setHours, setMinutes } from "date-fns";
+import { format, addMinutes } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { Loader2, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,11 @@ import { generateTimeSlots } from "@/hooks/use-calendar";
 import { useTranslations } from "@/hooks/use-translations";
 import { PassengerManagement, type PassengerFormData } from "@/components/bookings/passenger-management";
 
+const START_HOUR = 6;
+const END_HOUR = 22;
+const SLOT_INTERVAL = 15;
+const FIXED_DURATION = 10;
+
 const bookingFormSchema = z.object({
   date: z.string().min(1, "Date is required"),
   startTime: z.string().min(1, "Start time is required"),
@@ -41,6 +46,44 @@ const bookingFormSchema = z.object({
 });
 
 type BookingFormData = z.infer<typeof bookingFormSchema>;
+
+function isSameLocalDate(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function getSlotValue(hour: number, minute: number) {
+  return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+}
+
+function getNextAvailableSlot(date: Date, initialHour?: number, initialMinute?: number) {
+  if (initialHour !== undefined && initialMinute !== undefined) {
+    return getSlotValue(initialHour, initialMinute);
+  }
+
+  if (!isSameLocalDate(date, new Date())) {
+    return getSlotValue(9, 0);
+  }
+
+  const now = new Date();
+  const roundedMinutes = Math.ceil(now.getMinutes() / SLOT_INTERVAL) * SLOT_INTERVAL;
+  const nextSlot = new Date(now);
+  nextSlot.setSeconds(0, 0);
+  nextSlot.setMinutes(roundedMinutes);
+
+  if (nextSlot.getHours() < START_HOUR) {
+    return getSlotValue(START_HOUR, 0);
+  }
+
+  if (nextSlot.getHours() >= END_HOUR) {
+    return getSlotValue(END_HOUR - 1, 45);
+  }
+
+  return getSlotValue(nextSlot.getHours(), nextSlot.getMinutes());
+}
 
 interface EditingBooking {
   id: string;
@@ -91,10 +134,7 @@ export function BookingForm({
   const [passengerError, setPassengerError] = useState<string>("");
   
   // Generate 15-minute time slots (10 min booking + 5 min buffer)
-  const timeSlots = useMemo(() => generateTimeSlots(6, 22, 15), []);
-  
-  // Fixed 10-minute duration
-  const FIXED_DURATION = 10;
+  const timeSlots = useMemo(() => generateTimeSlots(START_HOUR, END_HOUR, SLOT_INTERVAL), []);
 
   const {
     register,
@@ -127,13 +167,11 @@ export function BookingForm({
       } else {
         // New booking - use initial values
         const date = initialDate || new Date();
-        const hour = initialHour ?? 9;
-        const minute = initialMinute ?? 0;
         setSelectedDate(date);
 
         reset({
           date: format(date, "yyyy-MM-dd"),
-          startTime: `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`,
+          startTime: getNextAvailableSlot(date, initialHour, initialMinute),
           purpose: "",
           notes: "",
           contactPhone: "",
@@ -177,6 +215,11 @@ export function BookingForm({
     const [year, month, day] = data.date.split("-").map(Number);
     const startDate = new Date(year, month - 1, day, hours, minutes);
     const endDate = addMinutes(startDate, FIXED_DURATION);
+
+    if (!editingBooking && startDate <= new Date()) {
+      setPassengerError("No puedes reservar una hora que ya paso.");
+      return;
+    }
 
     onSubmit({
       startTime: startDate.toISOString(),
@@ -265,12 +308,27 @@ export function BookingForm({
                       className="pl-10"
                     >
                       {timeSlots.map((slot) => (
-                        <option
-                          key={`${slot.hour}-${slot.minute}`}
-                          value={`${slot.hour.toString().padStart(2, "0")}:${slot.minute.toString().padStart(2, "0")}`}
-                        >
-                          {slot.label}
-                        </option>
+                        (() => {
+                          const slotDate =
+                            selectedDate ??
+                            (watchedDate
+                              ? new Date(watchedDate)
+                              : new Date());
+                          const slotDateTime = new Date(slotDate);
+                          slotDateTime.setHours(slot.hour, slot.minute, 0, 0);
+                          const isPastSlot = !editingBooking && slotDateTime <= new Date();
+
+                          return (
+                            <option
+                              key={`${slot.hour}-${slot.minute}`}
+                              value={getSlotValue(slot.hour, slot.minute)}
+                              disabled={isPastSlot}
+                            >
+                              {slot.label}
+                              {isPastSlot ? " - no disponible" : ""}
+                            </option>
+                          );
+                        })()
                       ))}
                     </Select>
                   </div>
@@ -282,19 +340,19 @@ export function BookingForm({
 
               {/* Duration info and end time preview */}
               {endTime && (
-                <div className="p-3 bg-violet-50 rounded-xl">
+                <div className="p-3 bg-brand-50 rounded-xl">
                   <div className="flex items-center justify-between text-sm mb-2">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-violet-600" />
-                      <span className="text-violet-700">
+                      <Clock className="w-4 h-4 text-brand-600" />
+                      <span className="text-brand-700">
                         <strong>{t("bookings.fixedDuration")}</strong> {t("bookings.fixedDurationBooking")}
                       </span>
                     </div>
-                    <span className="text-violet-700">
+                    <span className="text-brand-700">
                       {t("bookings.endsAt")} <strong>{endTime}</strong>
                     </span>
                   </div>
-                  <p className="text-xs text-violet-600">
+                  <p className="text-xs text-brand-600">
                     {t("bookings.bufferInfo")}
                   </p>
                 </div>
@@ -355,7 +413,7 @@ export function BookingForm({
                   <textarea
                     id="notes"
                     {...register("notes")}
-                    className="flex w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/20 focus-visible:border-violet-500 transition-colors resize-none"
+                    className="flex w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20 focus-visible:border-brand-500 transition-colors resize-none"
                     rows={3}
                     placeholder={t("bookings.notesPlaceholder")}
                   />
@@ -394,4 +452,3 @@ export function BookingForm({
     </Dialog>
   );
 }
-

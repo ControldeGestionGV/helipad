@@ -84,7 +84,7 @@ export function WeekView({
                 key={day.toISOString()}
                 className={cn(
                   "p-3 text-center border-l border-zinc-200",
-                  isToday(day) && "bg-violet-50"
+                  isToday(day) && "bg-brand-50"
                 )}
               >
                 <div className="text-xs text-zinc-500 uppercase">
@@ -94,7 +94,7 @@ export function WeekView({
                   className={cn(
                     "text-lg font-semibold mt-1",
                     isToday(day)
-                      ? "w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center mx-auto"
+                      ? "w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center mx-auto"
                       : "text-zinc-900"
                   )}
                 >
@@ -179,7 +179,7 @@ export function WeekView({
                               booking.status === "pending"
                                 ? "bg-amber-100 text-amber-800 border-2 border-amber-300 border-dashed hover:ring-2 hover:ring-offset-1 hover:ring-amber-400 cursor-pointer active:ring-2 active:ring-amber-400"
                                 : isOwnBooking
-                                ? "bg-violet-100 text-violet-800 hover:ring-2 hover:ring-offset-1 hover:ring-violet-300 cursor-pointer active:ring-2 active:ring-violet-300"
+                                ? "bg-brand-100 text-brand-800 hover:ring-2 hover:ring-offset-1 hover:ring-brand-300 cursor-pointer active:ring-2 active:ring-brand-300"
                                 : isAdmin || isSecurity
                                 ? "bg-blue-100 text-blue-800 hover:ring-2 hover:ring-offset-1 hover:ring-blue-300 cursor-pointer active:ring-2 active:ring-blue-300"
                                 : "bg-zinc-100 text-zinc-700 cursor-not-allowed opacity-60"
