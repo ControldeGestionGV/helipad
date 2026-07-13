@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { format } from "date-fns";
 import { createTRPCRouter, protectedProcedure, adminProcedure, securityOrAdminProcedure } from "../trpc";
-import { bookings, users, passengers, settings } from "@/server/db/schema";
+import { bookings, users, passengers } from "@/server/db/schema";
 import { eq, and, gte, lte, lt, gt, desc, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { broadcastBookingCreated, broadcastBookingCancelled } from "@/server/services/sse";
@@ -9,9 +9,11 @@ import {
   sendBookingConfirmation,
   sendBookingCancellation,
   sendPendingBookingApprovalEmail,
+  getApprovalRecipients,
 } from "@/server/services/email";
 import { createApprovalToken } from "@/lib/approval-tokens";
-import { defaultSettings } from "./settings";
+import { checkMembershipForPassengers } from "@/server/services/membership";
+import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
 
 const passengerInputSchema = z.object({
   id: z.string().optional(), // For existing passengers
@@ -49,6 +51,7 @@ export const bookingsRouter = createTRPCRouter({
           contactPhone: bookings.contactPhone,
           helicopterRegistration: bookings.helicopterRegistration,
           status: bookings.status,
+          membershipStatus: bookings.membershipStatus,
           user: {
             id: users.id,
             firstName: users.firstName,
@@ -92,6 +95,7 @@ export const bookingsRouter = createTRPCRouter({
           contactPhone: bookings.contactPhone,
           helicopterRegistration: bookings.helicopterRegistration,
           status: bookings.status,
+          membershipStatus: bookings.membershipStatus,
           user: {
             id: users.id,
             firstName: users.firstName,
@@ -251,9 +255,11 @@ export const bookingsRouter = createTRPCRouter({
         });
       }
 
-      // Non-admin users create pending bookings
+      // A booking auto-confirms if the creator is admin, OR if a member/VIP is aboard.
+      // Otherwise it requires special admin approval (no titular aboard).
       const isAdmin = ctx.session.user.role === "admin";
-      const bookingStatus = isAdmin ? "confirmed" : "pending";
+      const membershipStatus = await checkMembershipForPassengers(input.passengers);
+      const bookingStatus = isAdmin || membershipStatus !== "none" ? "confirmed" : "pending";
 
       const [newBooking] = await ctx.db
         .insert(bookings)
@@ -266,6 +272,7 @@ export const bookingsRouter = createTRPCRouter({
           contactPhone: input.contactPhone,
           helicopterRegistration: input.helicopterRegistration,
           status: bookingStatus,
+          membershipStatus,
         })
         .returning();
 
@@ -291,6 +298,12 @@ export const bookingsRouter = createTRPCRouter({
         endTime: end,
       });
 
+      if (bookingStatus === "confirmed" && membershipStatus === "none" && input.helicopterRegistration) {
+        await checkAndTriggerMisuseAlert(input.helicopterRegistration).catch((err) =>
+          console.error("Failed to check misuse alert:", err)
+        );
+      }
+
       // Send confirmation email ONLY if the booking is confirmed (not pending)
       // If it's pending, the email will be sent when admin approves it
       if (bookingStatus === "confirmed") {
@@ -306,32 +319,10 @@ export const bookingsRouter = createTRPCRouter({
           locale: "es", // Default to Spanish, can be made dynamic later
         }).catch((err) => console.error("Failed to send confirmation email:", err));
       } else {
-        const notificationSetting = await ctx.db.query.settings.findFirst({
-          where: eq(settings.key, "emailNotifications"),
-        });
-        const notificationConfig = notificationSetting
-          ? { ...defaultSettings.emailNotifications, ...JSON.parse(notificationSetting.value) }
-          : defaultSettings.emailNotifications;
+        const recipients = await getApprovalRecipients();
 
-        if (notificationConfig.adminNotificationsEnabled) {
+        if (recipients.length > 0) {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-          const envEmailOverride = process.env.APPROVAL_NOTIFICATION_EMAILS
-            ?.split(",")
-            .map((email) => email.trim())
-            .filter(Boolean);
-
-          const approverEmails: string[] = notificationConfig.approverEmails?.length
-            ? notificationConfig.approverEmails
-            : envEmailOverride ?? [];
-
-          const adminUsers = approverEmails.length
-            ? approverEmails.map((email) => ({ email }))
-            : await ctx.db.query.users.findMany({
-                where: and(eq(users.role, "admin"), eq(users.isActive, true)),
-                columns: {
-                  email: true,
-                },
-              });
 
           const approveToken = await createApprovalToken({
             bookingId: newBooking.id,
@@ -346,9 +337,9 @@ export const bookingsRouter = createTRPCRouter({
           const rejectUrl = `${appUrl}/api/bookings/approval/reject?token=${encodeURIComponent(rejectToken)}`;
 
           Promise.all(
-            adminUsers.map((adminUser) =>
+            recipients.map((adminEmail) =>
               sendPendingBookingApprovalEmail({
-                adminEmail: adminUser.email,
+                adminEmail,
                 userName: `${ctx.session.user.firstName} ${ctx.session.user.lastName}`,
                 userEmail: ctx.session.user.email ?? "",
                 userId: ctx.session.user.id,
@@ -526,16 +517,32 @@ export const bookingsRouter = createTRPCRouter({
         }
       }
 
+      // Recompute membership status if the passenger list changed
+      const membershipStatus = passengerUpdates
+        ? await checkMembershipForPassengers(passengerUpdates)
+        : undefined;
+
       const [updated] = await ctx.db
         .update(bookings)
         .set({
           ...updateData,
           startTime: updateData.startTime ? new Date(updateData.startTime) : undefined,
           endTime: updateData.endTime ? new Date(updateData.endTime) : undefined,
+          membershipStatus,
           updatedAt: new Date(),
         })
         .where(eq(bookings.id, id))
         .returning();
+
+      if (
+        updated.status === "confirmed" &&
+        updated.membershipStatus === "none" &&
+        updated.helicopterRegistration
+      ) {
+        await checkAndTriggerMisuseAlert(updated.helicopterRegistration).catch((err) =>
+          console.error("Failed to check misuse alert:", err)
+        );
+      }
 
       return updated;
     }),
@@ -662,6 +669,7 @@ export const bookingsRouter = createTRPCRouter({
           passengers: bookings.passengers,
           helicopterRegistration: bookings.helicopterRegistration,
           status: bookings.status,
+          membershipStatus: bookings.membershipStatus,
           createdAt: bookings.createdAt,
           cancelledAt: bookings.cancelledAt,
           user: {
@@ -769,6 +777,12 @@ export const bookingsRouter = createTRPCRouter({
         startTime: existing.startTime,
         endTime: existing.endTime,
       });
+
+      if (approved.membershipStatus === "none" && approved.helicopterRegistration) {
+        await checkAndTriggerMisuseAlert(approved.helicopterRegistration).catch((err) =>
+          console.error("Failed to check misuse alert:", err)
+        );
+      }
 
       // Send confirmation email
       if (existing.user?.email) {
@@ -894,6 +908,7 @@ export const bookingsRouter = createTRPCRouter({
           notes: bookings.notes,
           contactPhone: bookings.contactPhone,
           status: bookings.status,
+          membershipStatus: bookings.membershipStatus,
           createdAt: bookings.createdAt,
           user: {
             id: users.id,

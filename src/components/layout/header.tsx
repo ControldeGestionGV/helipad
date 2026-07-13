@@ -18,6 +18,8 @@ import {
   Settings,
   LayoutDashboard,
   Mail,
+  IdCard,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
@@ -55,7 +57,9 @@ export function Header({ user }: HeaderProps) {
     admin: [
       { label: t("navigation.dashboard"), href: ROUTES.adminDashboard, icon: LayoutDashboard },
       { label: t("navigation.users"), href: ROUTES.adminUsers, icon: Users },
+      { label: t("navigation.members"), href: ROUTES.adminMembers, icon: IdCard },
       { label: t("navigation.allBookings"), href: ROUTES.adminBookings, icon: ClipboardList },
+      { label: t("navigation.alerts"), href: ROUTES.adminAlerts, icon: AlertTriangle },
       { label: t("navigation.settings"), href: ROUTES.adminSettings, icon: Settings },
       { label: t("navigation.email"), href: ROUTES.adminEmail, icon: Mail },
     ],

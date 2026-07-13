@@ -27,10 +27,66 @@ export const bookings = sqliteTable("bookings", {
   passengers: integer("passengers").notNull().default(1),
   helicopterRegistration: text("helicopter_registration"),
   status: text("status", { enum: ["pending", "confirmed", "cancelled"] }).notNull().default("confirmed"),
+  // "member": un pasajero es titular de membresia activa. "vip": un pasajero esta en la lista VIP.
+  // "none": ningun pasajero es titular ni VIP -> requiere aprobacion especial y cuenta para la alerta de uso indebido.
+  membershipStatus: text("membership_status", { enum: ["member", "vip", "none"] }).notNull().default("none"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   cancelledAt: integer("cancelled_at", { mode: "timestamp" }),
   cancelledBy: text("cancelled_by").references(() => users.id),
+});
+
+// Members table (membership program: annual, tied to a person, not to an aircraft)
+export const members = sqliteTable("members", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  identificationType: text("identification_type", { enum: ["cedula", "passport", "other"] }).notNull(),
+  identificationNumber: text("identification_number").notNull(),
+  // Normalizado (sin espacios/guiones, mayusculas) para poder cruzar contra pasajeros de forma confiable.
+  identificationNumberNormalized: text("identification_number_normalized").notNull(),
+  membershipStartDate: integer("membership_start_date", { mode: "timestamp" }).notNull(),
+  membershipEndDate: integer("membership_end_date", { mode: "timestamp" }).notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// Aircraft a member usually flies (informational only - does not restrict which aircraft they can use)
+export const memberAircraft = sqliteTable("member_aircraft", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  registration: text("registration").notNull(),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// Pre-approved VIP list - exempt from membership requirement and from the misuse alert count
+export const vips = sqliteTable("vips", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  identificationType: text("identification_type", { enum: ["cedula", "passport", "other"] }).notNull(),
+  identificationNumber: text("identification_number").notNull(),
+  identificationNumberNormalized: text("identification_number_normalized").notNull(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+// Misuse alerts: an aircraft landed 2+ times in the last 6 months with no member/VIP aboard
+export const misuseAlerts = sqliteTable("misuse_alerts", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  helicopterRegistration: text("helicopter_registration").notNull(),
+  triggerCount: integer("trigger_count").notNull(),
+  windowStart: integer("window_start", { mode: "timestamp" }).notNull(),
+  windowEnd: integer("window_end", { mode: "timestamp" }).notNull(),
+  status: text("status", { enum: ["open", "acknowledged"] }).notNull().default("open"),
+  acknowledgedAt: integer("acknowledged_at", { mode: "timestamp" }),
+  acknowledgedBy: text("acknowledged_by").references(() => users.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
 // Settings table (key-value store)
@@ -67,7 +123,7 @@ export const emailLogs = sqliteTable("email_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   bookingId: text("booking_id").references(() => bookings.id, { onDelete: "set null" }),
-  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset"] }).notNull(),
+  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset", "misuse_alert"] }).notNull(),
   status: text("status", { enum: ["sent", "failed"] }).notNull(),
   sentAt: integer("sent_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   error: text("error"),
@@ -140,6 +196,24 @@ export const passengersRelations = relations(passengers, ({ one }) => ({
   }),
 }));
 
+export const membersRelations = relations(members, ({ many }) => ({
+  aircraft: many(memberAircraft),
+}));
+
+export const memberAircraftRelations = relations(memberAircraft, ({ one }) => ({
+  member: one(members, {
+    fields: [memberAircraft.memberId],
+    references: [members.id],
+  }),
+}));
+
+export const misuseAlertsRelations = relations(misuseAlerts, ({ one }) => ({
+  acknowledgedByUser: one(users, {
+    fields: [misuseAlerts.acknowledgedBy],
+    references: [users.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -152,4 +226,12 @@ export type EmailLog = typeof emailLogs.$inferSelect;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type Passenger = typeof passengers.$inferSelect;
 export type NewPassenger = typeof passengers.$inferInsert;
+export type Member = typeof members.$inferSelect;
+export type NewMember = typeof members.$inferInsert;
+export type MemberAircraft = typeof memberAircraft.$inferSelect;
+export type NewMemberAircraft = typeof memberAircraft.$inferInsert;
+export type Vip = typeof vips.$inferSelect;
+export type NewVip = typeof vips.$inferInsert;
+export type MisuseAlert = typeof misuseAlerts.$inferSelect;
+export type NewMisuseAlert = typeof misuseAlerts.$inferInsert;
 

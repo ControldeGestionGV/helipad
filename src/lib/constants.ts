@@ -53,6 +53,8 @@ export const ROUTES = {
   adminBookings: "/admin/bookings",
   adminSettings: "/admin/settings",
   adminEmail: "/admin/email",
+  adminMembers: "/admin/members",
+  adminAlerts: "/admin/alerts",
 } as const;
 
 // Navigation items

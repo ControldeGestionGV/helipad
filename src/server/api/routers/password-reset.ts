@@ -80,7 +80,7 @@ export const passwordResetRouter = createTRPCRouter({
               </p>
               <div style="margin: 32px 0;">
                 <a href="${resetUrl}" 
-                   style="background-color: #8b5cf6; color: white; padding: 12px 24px; 
+                   style="background-color: #18181b; color: white; padding: 12px 24px;
                           text-decoration: none; border-radius: 8px; display: inline-block;">
                   Reset Password
                 </a>
@@ -92,7 +92,7 @@ export const passwordResetRouter = createTRPCRouter({
               <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 32px 0;" />
               <p style="color: #a1a1aa; font-size: 12px;">
                 If the button doesn't work, copy and paste this link into your browser:<br />
-                <a href="${resetUrl}" style="color: #8b5cf6;">${resetUrl}</a>
+                <a href="${resetUrl}" style="color: #3f3f46;">${resetUrl}</a>
               </p>
             </div>
           `,

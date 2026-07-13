@@ -1,8 +1,9 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { db } from "@/server/db";
-import { emailLogs, emailConfigurations } from "@/server/db/schema";
-import { eq } from "drizzle-orm";
+import { emailLogs, emailConfigurations, settings as settingsTable, users } from "@/server/db/schema";
+import { and, eq } from "drizzle-orm";
+import { defaultSettings } from "@/server/api/routers/settings";
 import { GraphMailer } from "@/lib/email/graphMailer";
 import type { IMailer } from "@/lib/email/types";
 import enTranslations from "@/lib/translations/en.json";
@@ -184,7 +185,43 @@ interface SendEmailOptions {
   html: string;
   userId?: string;
   bookingId?: string;
-  type: "confirmation" | "cancellation" | "reminder" | "password_reset";
+  type: "confirmation" | "cancellation" | "reminder" | "password_reset" | "misuse_alert";
+}
+
+/**
+ * Resolve who should receive admin/approval-type notifications.
+ * Precedence: settings.emailNotifications.approverEmails (DB) -> APPROVAL_NOTIFICATION_EMAILS (env) -> active admins.
+ */
+export async function getApprovalRecipients(): Promise<string[]> {
+  const notificationSetting = await db.query.settings.findFirst({
+    where: eq(settingsTable.key, "emailNotifications"),
+  });
+  const notificationConfig = notificationSetting
+    ? { ...defaultSettings.emailNotifications, ...JSON.parse(notificationSetting.value) }
+    : defaultSettings.emailNotifications;
+
+  if (!notificationConfig.adminNotificationsEnabled) {
+    return [];
+  }
+
+  const envEmailOverride = process.env.APPROVAL_NOTIFICATION_EMAILS
+    ?.split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+
+  const approverEmails: string[] = notificationConfig.approverEmails?.length
+    ? notificationConfig.approverEmails
+    : envEmailOverride ?? [];
+
+  if (approverEmails.length) {
+    return approverEmails;
+  }
+
+  const adminUsers = await db.query.users.findMany({
+    where: and(eq(users.role, "admin"), eq(users.isActive, true)),
+    columns: { email: true },
+  });
+  return adminUsers.map((u) => u.email);
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
@@ -292,7 +329,7 @@ function baseTemplate(content: string): string {
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
           <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); padding: 32px; text-align: center;">
+            <td style="background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); padding: 32px; text-align: center;">
               <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">🚁 ${APP_NAME}</h1>
             </td>
           </tr>
@@ -306,7 +343,7 @@ function baseTemplate(content: string): string {
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e4e4e7;">
               <p style="margin: 0; color: #71717a; font-size: 14px;">
-                ${APP_NAME} • <a href="${APP_URL}" style="color: #7c3aed; text-decoration: none;">Visit Dashboard</a>
+                ${APP_NAME} • <a href="${APP_URL}" style="color: #3f3f46; text-decoration: none;">Visit Dashboard</a>
               </p>
             </td>
           </tr>
@@ -422,7 +459,7 @@ export async function sendPendingBookingApprovalEmail(data: PendingBookingApprov
       <a href="mailto:${data.userEmail}?subject=${correctionSubject}&body=${correctionBody}" style="display: inline-block; background: #f59e0b; color: #ffffff; text-decoration: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; font-size: 14px; margin: 0 8px 8px 0;">Pedir correccion</a>
     </div>
 
-    <a href="${data.appUrl}" style="color: #7c3aed; text-decoration: none; font-weight: 600;">Ver en la app</a>
+    <a href="${data.appUrl}" style="color: #3f3f46; text-decoration: none; font-weight: 600;">Ver en la app</a>
   `;
 
   return sendEmail({
@@ -433,6 +470,69 @@ export async function sendPendingBookingApprovalEmail(data: PendingBookingApprov
     bookingId: data.bookingId,
     type: "confirmation",
   });
+}
+
+interface MisuseAlertData {
+  helicopterRegistration: string;
+  triggerCount: number;
+  windowStart: Date;
+  windowEnd: Date;
+}
+
+export async function sendMisuseAlertEmail(data: MisuseAlertData): Promise<boolean> {
+  const recipients = await getApprovalRecipients();
+
+  if (recipients.length === 0) {
+    return false;
+  }
+
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Alerta de uso indebido 🚨</h2>
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      La aeronave con matricula <strong>${escapeHtml(data.helicopterRegistration)}</strong> ha aterrizado
+      <strong>${data.triggerCount} veces</strong> en los ultimos 6 meses sin ningun titular de membresia
+      (ni VIP) a bordo. Esto puede indicar que se esta prestando la aeronave, o que se esta evadiendo
+      la exigencia de membresia.
+    </p>
+
+    <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding: 8px 0; color: #991b1b; font-size: 14px;">Matricula</td>
+          <td style="padding: 8px 0; color: #7f1d1d; font-size: 14px; font-weight: 600;">${escapeHtml(data.helicopterRegistration)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #991b1b; font-size: 14px;">Aterrizajes sin titular</td>
+          <td style="padding: 8px 0; color: #7f1d1d; font-size: 14px; font-weight: 600;">${data.triggerCount}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #991b1b; font-size: 14px;">Ventana evaluada</td>
+          <td style="padding: 8px 0; color: #7f1d1d; font-size: 14px;">${data.windowStart.toLocaleDateString("es-DO")} - ${data.windowEnd.toLocaleDateString("es-DO")}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 14px;">
+      Esta es una notificacion informativa; no bloquea reservas futuras de esta aeronave.
+    </p>
+
+    <a href="${APP_URL}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+      Ver alertas
+    </a>
+  `;
+
+  const results = await Promise.all(
+    recipients.map((to) =>
+      sendEmail({
+        to,
+        subject: `Alerta de uso indebido - ${data.helicopterRegistration}`,
+        html: baseTemplate(content),
+        type: "misuse_alert",
+      })
+    )
+  );
+
+  return results.some(Boolean);
 }
 
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<boolean> {
@@ -471,7 +571,7 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<b
       ${t("emails.needChanges", locale)}
     </p>
     
-    <a href="${APP_URL}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${APP_URL}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.viewMyBookings", locale)}
     </a>
   `;
@@ -516,7 +616,7 @@ export async function sendBookingCancellation(data: BookingEmailData): Promise<b
       ${t("emails.timeslotAvailable", locale)}
     </p>
     
-    <a href="${APP_URL}/bookings/calendar" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${APP_URL}/bookings/calendar" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.bookNewSlot", locale)}
     </a>
   `;
@@ -563,7 +663,7 @@ export async function sendBookingReminder(data: BookingEmailData): Promise<boole
       </table>
     </div>
     
-    <a href="${APP_URL}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${APP_URL}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.viewBookingDetails", locale)}
     </a>
   `;

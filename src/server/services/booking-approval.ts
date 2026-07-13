@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { bookings } from "@/server/db/schema";
 import { broadcastBookingCancelled, broadcastBookingCreated } from "@/server/services/sse";
 import { sendBookingCancellation, sendBookingConfirmation } from "@/server/services/email";
+import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
 
 export async function approveBookingById(bookingId: string) {
   const existing = await db.query.bookings.findFirst({
@@ -76,6 +77,12 @@ export async function approveBookingById(bookingId: string) {
     startTime: existing.startTime,
     endTime: existing.endTime,
   });
+
+  if (approved.membershipStatus === "none" && approved.helicopterRegistration) {
+    await checkAndTriggerMisuseAlert(approved.helicopterRegistration).catch((err) =>
+      console.error("Failed to check misuse alert:", err)
+    );
+  }
 
   if (existing.user?.email) {
     sendBookingConfirmation({

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarClock, Check, Clock, Phone, Plane, RefreshCw, User, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, Check, Clock, Phone, Plane, RefreshCw, User, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSession } from "@/lib/auth-client";
 import { Badge } from "@/components/ui/badge";
@@ -149,6 +149,12 @@ export default function AdminOperationPage() {
                         ? "Pendiente"
                         : "Cancelada"}
                     </Badge>
+                    {booking.membershipStatus === "none" && (
+                      <Badge variant="warning">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Sin titular a bordo
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 text-sm text-zinc-600 md:grid-cols-2 xl:grid-cols-4">

@@ -22,6 +22,13 @@
       "when": 1767875267408,
       "tag": "0002_futuristic_bill_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1783603268276,
+      "tag": "0003_parallel_triton",
+      "breakpoints": true
     }
   ]
 }

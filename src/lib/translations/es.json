@@ -103,7 +103,9 @@
     "settings": "Configuración",
     "email": "Configuración de Email",
     "profile": "Perfil",
-    "admin": "Admin"
+    "admin": "Admin",
+    "members": "Miembros",
+    "alerts": "Alertas"
   },
 
   "roles": {
@@ -323,6 +325,86 @@
     "bookingsWillBeDeleted": "Todas las reservas asociadas con este usuario también serán eliminadas.",
     "deleteUser": "Eliminar Usuario"
   },
+
+  "adminMembers": {
+    "title": "Membresías",
+    "description": "Gestiona los titulares de membresía y la lista VIP",
+    "tabMembers": "Miembros",
+    "tabVips": "VIP",
+    "addMember": "Agregar Miembro",
+    "addVip": "Agregar VIP",
+    "searchPlaceholder": "Buscar por nombre o identificación...",
+    "allStatus": "Todos los Estados",
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "expired": "Vencido",
+    "noMembersFound": "No se encontraron miembros",
+    "noVipsFound": "No se encontraron VIP",
+    "tableHeaders": {
+      "name": "Nombre",
+      "identification": "Identificación",
+      "validity": "Vigencia",
+      "status": "Estado",
+      "aircraft": "Aeronaves habituales"
+    },
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "activate": "Activar",
+    "deactivate": "Desactivar"
+  },
+
+  "memberForm": {
+    "createTitle": "Nuevo Miembro",
+    "editTitle": "Editar Miembro",
+    "createDescription": "Registra un nuevo titular de membresía.",
+    "editDescription": "Actualiza los datos del miembro.",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "identificationType": "Tipo de Identificación",
+    "identificationNumber": "Número de Identificación",
+    "membershipStartDate": "Inicio de Vigencia",
+    "membershipEndDate": "Fin de Vigencia",
+    "notes": "Notas (opcional)",
+    "aircraftSection": "Aeronaves habituales (informativo, no restringe cuál puede volar)",
+    "aircraftPlaceholder": "Matrícula, ej. N123AB",
+    "addAircraft": "Agregar",
+    "noAircraft": "Sin aeronaves declaradas",
+    "createMember": "Crear Miembro",
+    "updateMember": "Actualizar Miembro"
+  },
+
+  "vipForm": {
+    "createTitle": "Nuevo VIP",
+    "editTitle": "Editar VIP",
+    "createDescription": "Agrega a alguien a la lista pre-aprobada de VIP.",
+    "editDescription": "Actualiza los datos del VIP.",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "identificationType": "Tipo de Identificación",
+    "identificationNumber": "Número de Identificación",
+    "notes": "Notas (opcional, ej. cargo)",
+    "createVip": "Agregar VIP",
+    "updateVip": "Actualizar VIP"
+  },
+
+  "adminAlerts": {
+    "title": "Alertas de Uso Indebido",
+    "description": "Aeronaves que aterrizaron 2 o más veces sin ningún titular a bordo en los últimos 6 meses",
+    "noAlerts": "No hay alertas abiertas",
+    "tableHeaders": {
+      "registration": "Matrícula",
+      "count": "Aterrizajes sin titular",
+      "window": "Ventana evaluada",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "open": "Abierta",
+    "acknowledged": "Revisada",
+    "acknowledge": "Marcar como revisada",
+    "acknowledgedBy": "Revisada por"
+  },
+
+  "noTitularBadge": "Sin titular a bordo",
 
   "adminBookings": {
     "title": "Todas las Reservas",

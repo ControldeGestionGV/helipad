@@ -12,6 +12,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "npx tsx src/server/db/seed.ts",
+    "db:backfill-alerts": "npx tsx src/server/db/backfill-misuse-alerts.ts",
     "migrate:turso": "npx tsx scripts/migrate-turso-interactive.js",
     "migrate:turso:file": "npx tsx scripts/migrate-turso.js",
     "check:email": "npx tsx scripts/check-email-config.js"

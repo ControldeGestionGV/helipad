@@ -12,7 +12,8 @@ import {
   Eye,
   X,
   Check,
-  Plane
+  Plane,
+  AlertTriangle
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSession } from "@/lib/auth-client";
@@ -324,12 +325,18 @@ export default function AdminBookingsPage() {
                             : "destructive"
                         }
                       >
-                        {booking.status === "confirmed" 
-                          ? t("bookingStatus.confirmed") 
+                        {booking.status === "confirmed"
+                          ? t("bookingStatus.confirmed")
                           : booking.status === "pending"
                           ? t("bookingStatus.pending")
                           : t("bookingStatus.cancelled")}
                       </Badge>
+                      {booking.membershipStatus === "none" && (
+                        <Badge variant="warning" className="ml-1.5">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          {t("noTitularBadge")}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -430,12 +437,18 @@ export default function AdminBookingsPage() {
                   }
                   className="text-sm"
                 >
-                  {selectedBookingDetails.status === "confirmed" 
-                    ? t("bookingStatus.confirmed") 
+                  {selectedBookingDetails.status === "confirmed"
+                    ? t("bookingStatus.confirmed")
                     : selectedBookingDetails.status === "pending"
                     ? t("bookingStatus.pending")
                     : t("bookingStatus.cancelled")}
                 </Badge>
+                {selectedBookingDetails.membershipStatus === "none" && (
+                  <Badge variant="warning" className="text-sm ml-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 mr-1" />
+                    {t("noTitularBadge")}
+                  </Badge>
+                )}
               </div>
 
               {/* User Information */}

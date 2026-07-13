@@ -5,6 +5,7 @@ This directory contains SQL migration files for the Turso production database.
 ## 📋 Migration Files
 
 - `0003_add_email_configurations.sql` - Adds email configuration table for Nodemailer
+- `0010_add_membership_module.sql` - Adds membership program (members, member aircraft registry, VIP list, misuse alerts) and `bookings.membership_status`
 
 ## 🚀 How to Apply Migrations to Turso
 

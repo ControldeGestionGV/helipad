@@ -103,7 +103,9 @@
     "settings": "Settings",
     "email": "Email Settings",
     "profile": "Profile",
-    "admin": "Admin"
+    "admin": "Admin",
+    "members": "Members",
+    "alerts": "Alerts"
   },
 
   "roles": {
@@ -323,6 +325,86 @@
     "bookingsWillBeDeleted": "All bookings associated with this user will also be deleted.",
     "deleteUser": "Delete User"
   },
+
+  "adminMembers": {
+    "title": "Memberships",
+    "description": "Manage membership holders and the VIP list",
+    "tabMembers": "Members",
+    "tabVips": "VIP",
+    "addMember": "Add Member",
+    "addVip": "Add VIP",
+    "searchPlaceholder": "Search by name or identification...",
+    "allStatus": "All Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "expired": "Expired",
+    "noMembersFound": "No members found",
+    "noVipsFound": "No VIPs found",
+    "tableHeaders": {
+      "name": "Name",
+      "identification": "Identification",
+      "validity": "Validity",
+      "status": "Status",
+      "aircraft": "Usual aircraft"
+    },
+    "edit": "Edit",
+    "delete": "Delete",
+    "activate": "Activate",
+    "deactivate": "Deactivate"
+  },
+
+  "memberForm": {
+    "createTitle": "New Member",
+    "editTitle": "Edit Member",
+    "createDescription": "Register a new membership holder.",
+    "editDescription": "Update the member's details.",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "identificationType": "Identification Type",
+    "identificationNumber": "Identification Number",
+    "membershipStartDate": "Validity Start",
+    "membershipEndDate": "Validity End",
+    "notes": "Notes (optional)",
+    "aircraftSection": "Usual aircraft (informational, does not restrict which one they can fly)",
+    "aircraftPlaceholder": "Registration, e.g. N123AB",
+    "addAircraft": "Add",
+    "noAircraft": "No aircraft declared",
+    "createMember": "Create Member",
+    "updateMember": "Update Member"
+  },
+
+  "vipForm": {
+    "createTitle": "New VIP",
+    "editTitle": "Edit VIP",
+    "createDescription": "Add someone to the pre-approved VIP list.",
+    "editDescription": "Update the VIP's details.",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "identificationType": "Identification Type",
+    "identificationNumber": "Identification Number",
+    "notes": "Notes (optional, e.g. title)",
+    "createVip": "Add VIP",
+    "updateVip": "Update VIP"
+  },
+
+  "adminAlerts": {
+    "title": "Misuse Alerts",
+    "description": "Aircraft that landed 2 or more times with no member aboard in the last 6 months",
+    "noAlerts": "No open alerts",
+    "tableHeaders": {
+      "registration": "Registration",
+      "count": "Landings without member",
+      "window": "Window evaluated",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "open": "Open",
+    "acknowledged": "Acknowledged",
+    "acknowledge": "Mark as reviewed",
+    "acknowledgedBy": "Reviewed by"
+  },
+
+  "noTitularBadge": "No member aboard",
 
   "adminBookings": {
     "title": "All Bookings",
