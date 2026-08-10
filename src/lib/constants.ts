@@ -51,6 +51,7 @@ export const ROUTES = {
   adminOperation: "/admin/operation",
   adminUsers: "/admin/users",
   adminBookings: "/admin/bookings",
+  adminBookingsHistorical: "/admin/bookings/historical",
   adminSettings: "/admin/settings",
   adminEmail: "/admin/email",
   adminMembers: "/admin/members",

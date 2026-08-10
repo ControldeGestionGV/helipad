@@ -13,6 +13,7 @@ import {
   Mail,
   IdCard,
   AlertTriangle,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
@@ -38,14 +39,16 @@ export function Sidebar({ user }: SidebarProps) {
       { label: t("navigation.myBookings"), href: ROUTES.myBookings, icon: ListOrdered },
     ],
     admin: [
-      { label: t("navigation.dashboard"), href: ROUTES.adminDashboard, icon: LayoutDashboard },
-      { label: "Operacion de Hoy", href: ROUTES.adminOperation, icon: ClipboardCheck },
-      { label: t("navigation.users"), href: ROUTES.adminUsers, icon: Users },
-      { label: t("navigation.members"), href: ROUTES.adminMembers, icon: IdCard },
-      { label: t("navigation.allBookings"), href: ROUTES.adminBookings, icon: ClipboardList },
-      { label: t("navigation.alerts"), href: ROUTES.adminAlerts, icon: AlertTriangle },
-      { label: t("navigation.settings"), href: ROUTES.adminSettings, icon: Settings },
-      { label: t("navigation.email"), href: ROUTES.adminEmail, icon: Mail },
+      { label: t("navigation.dashboard"), href: ROUTES.adminDashboard, icon: LayoutDashboard, adminOnly: false },
+      { label: "Operacion de Hoy", href: ROUTES.adminOperation, icon: ClipboardCheck, adminOnly: false },
+      { label: t("navigation.users"), href: ROUTES.adminUsers, icon: Users, adminOnly: false },
+      { label: t("navigation.members"), href: ROUTES.adminMembers, icon: IdCard, adminOnly: false },
+      { label: t("navigation.allBookings"), href: ROUTES.adminBookings, icon: ClipboardList, adminOnly: false },
+      // Reescribe historial (carga vuelos pasados): solo admin, no security.
+      { label: t("navigation.historicalBookings"), href: ROUTES.adminBookingsHistorical, icon: History, adminOnly: true },
+      { label: t("navigation.alerts"), href: ROUTES.adminAlerts, icon: AlertTriangle, adminOnly: false },
+      { label: t("navigation.settings"), href: ROUTES.adminSettings, icon: Settings, adminOnly: false },
+      { label: t("navigation.email"), href: ROUTES.adminEmail, icon: Mail, adminOnly: false },
     ],
   };
 
@@ -101,7 +104,9 @@ export function Sidebar({ user }: SidebarProps) {
               {t("navigation.administration")}
             </h3>
             <ul className="space-y-1">
-              {navItems.admin.map((item) => {
+              {navItems.admin
+                .filter((item) => !item.adminOnly || user.role === "admin")
+                .map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname.startsWith(item.href);
                 return (

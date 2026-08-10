@@ -34,6 +34,10 @@ export const bookings = sqliteTable("bookings", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   cancelledAt: integer("cancelled_at", { mode: "timestamp" }),
   cancelledBy: text("cancelled_by").references(() => users.id),
+  // Vuelo cargado retroactivamente (no reservado en tiempo real) via /admin/bookings/historical.
+  isHistorical: integer("is_historical", { mode: "boolean" }).notNull().default(false),
+  // Quien hizo la carga retroactiva. Puede diferir de userId (a nombre de quien queda el vuelo).
+  createdBy: text("created_by").references(() => users.id),
 });
 
 // Members table (membership program: annual, tied to a person, not to an aircraft)

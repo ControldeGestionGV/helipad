@@ -86,6 +86,36 @@ export const bookingSchema = z.object({
 
 export const updateBookingSchema = bookingSchema.partial();
 
+// Historical booking validations (retroactive load of flights that already happened,
+// shared by the single-entry form, the CSV bulk import, and the tRPC procedures so
+// all three agree on what counts as a valid row).
+export const historicalPassengerSchema = z.object({
+  name: z.string().min(1, "Passenger name is required").max(255),
+  identificationType: z.enum(["cedula", "passport", "other"]),
+  identificationNumber: z.string().min(1, "Identification number is required").max(255),
+  idPhotoBase64: z.string().optional(),
+});
+
+export const historicalBookingInputSchema = z
+  .object({
+    startTime: z.string().datetime("Invalid start time"),
+    endTime: z.string().datetime("Invalid end time"),
+    purpose: z.string().min(1, "Purpose is required").max(500),
+    notes: z.string().max(1000).optional(),
+    contactPhone: z.string().max(20).optional(),
+    helicopterRegistration: z.string().min(1, "Helicopter registration is required").max(50),
+    userId: z.string().uuid().optional(),
+    passengers: z.array(historicalPassengerSchema).min(1, "At least one passenger is required"),
+  })
+  .refine((data) => new Date(data.startTime) < new Date(data.endTime), {
+    message: "End time must be after start time",
+    path: ["endTime"],
+  })
+  .refine((data) => new Date(data.endTime) <= new Date(), {
+    message: "Cannot load a flight in the future — use the regular booking flow instead",
+    path: ["endTime"],
+  });
+
 // Settings validations
 export const operationalHoursSchema = z.object({
   start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
@@ -114,6 +144,8 @@ export type UserInput = z.infer<typeof userSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type BookingInput = z.infer<typeof bookingSchema>;
 export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;
+export type HistoricalPassengerInput = z.infer<typeof historicalPassengerSchema>;
+export type HistoricalBookingInput = z.infer<typeof historicalBookingInputSchema>;
 export type OperationalHoursInput = z.infer<typeof operationalHoursSchema>;
 export type EmailSettingsInput = z.infer<typeof emailSettingsSchema>;
 

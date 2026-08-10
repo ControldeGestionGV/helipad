@@ -14,6 +14,8 @@ import {
 import { createApprovalToken } from "@/lib/approval-tokens";
 import { checkMembershipForPassengers } from "@/server/services/membership";
 import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
+import { historicalBookingInputSchema, type HistoricalBookingInput } from "@/lib/validations";
+import type { DbClient } from "@/server/db";
 
 const passengerInputSchema = z.object({
   id: z.string().optional(), // For existing passengers
@@ -22,6 +24,92 @@ const passengerInputSchema = z.object({
   identificationNumber: z.string().min(1).max(255),
   idPhotoBase64: z.string().optional(),
 });
+
+/**
+ * Shared by createHistorical and bulkCreateHistorical: inserts one retroactively-loaded
+ * flight. Always lands as "confirmed" (it already happened, there's nothing to approve)
+ * and is flagged isHistorical/createdBy for audit purposes. No emails, no SSE broadcast.
+ */
+async function insertHistoricalBooking(
+  db: DbClient,
+  actorId: string,
+  input: HistoricalBookingInput
+) {
+  const start = new Date(input.startTime);
+  const end = new Date(input.endTime);
+
+  if (input.userId) {
+    const targetUser = await db.query.users.findFirst({
+      where: eq(users.id, input.userId),
+      columns: { id: true },
+    });
+    if (!targetUser) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+    }
+  }
+
+  // Same conflict rule as a live booking (including the 5-minute buffer). Checking
+  // against the DB on every call also catches conflicts between rows already
+  // inserted earlier in the same bulk import, since each row is committed before
+  // the next one is checked.
+  const BUFFER_MINUTES = 5;
+  const endWithBuffer = new Date(end.getTime() + BUFFER_MINUTES * 60 * 1000);
+
+  const conflicts = await db
+    .select({ id: bookings.id })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.status, "confirmed"),
+        lt(bookings.startTime, endWithBuffer),
+        gt(sql`datetime(${bookings.endTime}, '+5 minutes')`, start)
+      )
+    );
+
+  if (conflicts.length > 0) {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message: "This time slot conflicts with an existing booking (including 5-minute buffer)",
+    });
+  }
+
+  const membershipStatus = await checkMembershipForPassengers(input.passengers);
+
+  const [newBooking] = await db
+    .insert(bookings)
+    .values({
+      userId: input.userId ?? actorId,
+      startTime: start,
+      endTime: end,
+      purpose: input.purpose,
+      notes: input.notes,
+      contactPhone: input.contactPhone,
+      helicopterRegistration: input.helicopterRegistration,
+      status: "confirmed",
+      membershipStatus,
+      isHistorical: true,
+      createdBy: actorId,
+    })
+    .returning();
+
+  await db.insert(passengers).values(
+    input.passengers.map((passenger) => ({
+      bookingId: newBooking.id,
+      name: passenger.name,
+      identificationType: passenger.identificationType,
+      identificationNumber: passenger.identificationNumber,
+      idPhotoBase64: passenger.idPhotoBase64,
+    }))
+  );
+
+  if (membershipStatus === "none" && input.helicopterRegistration) {
+    await checkAndTriggerMisuseAlert(input.helicopterRegistration).catch((err) =>
+      console.error("Failed to check misuse alert:", err)
+    );
+  }
+
+  return newBooking;
+}
 
 export const bookingsRouter = createTRPCRouter({
   /**
@@ -932,6 +1020,43 @@ export const bookingsRouter = createTRPCRouter({
           limit,
           totalPages: Math.ceil(count / limit),
         },
+      };
+    }),
+
+  /**
+   * Admin: Load a single flight that already happened but was never booked in real time.
+   */
+  createHistorical: adminProcedure
+    .input(historicalBookingInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      return insertHistoricalBooking(ctx.db, ctx.session.user.id, input);
+    }),
+
+  /**
+   * Admin: Bulk-load flights from a CSV import. Rows are inserted one by one (no
+   * shared transaction) so a single bad row doesn't roll back the rest of the batch.
+   */
+  bulkCreateHistorical: adminProcedure
+    .input(z.array(historicalBookingInputSchema).min(1).max(500))
+    .mutation(async ({ ctx, input }) => {
+      const results: Array<{ index: number; bookingId?: string; error?: string }> = [];
+
+      for (let index = 0; index < input.length; index++) {
+        try {
+          const booking = await insertHistoricalBooking(ctx.db, ctx.session.user.id, input[index]);
+          results.push({ index, bookingId: booking.id });
+        } catch (error) {
+          results.push({
+            index,
+            error: error instanceof TRPCError ? error.message : "Unexpected error while saving this row",
+          });
+        }
+      }
+
+      return {
+        succeeded: results.filter((r) => r.bookingId).length,
+        failed: results.filter((r) => r.error).length,
+        results,
       };
     }),
 });

@@ -105,7 +105,8 @@
     "profile": "Profile",
     "admin": "Admin",
     "members": "Members",
-    "alerts": "Alerts"
+    "alerts": "Alerts",
+    "historicalBookings": "Load Past Flights"
   },
 
   "roles": {
@@ -161,6 +162,7 @@
     "date": "Date",
     "selectDate": "Pick a date",
     "startTime": "Start Time",
+    "endTime": "End Time",
     "duration": "Duration",
     "purpose": "Purpose",
     "purposePlaceholder": "e.g., Medical transport, VIP arrival",
@@ -447,6 +449,36 @@
     "metadata": "Metadata",
     "bookingId": "Booking ID",
     "createdAt": "Created At"
+  },
+
+  "historicalBookings": {
+    "title": "Load Past Flights",
+    "description": "Record flights that already happened but were never logged in time. Admins only.",
+    "tabIndividual": "Individual",
+    "tabBulk": "Bulk Import",
+    "assignToUser": "Assign to User (optional)",
+    "assignToUserDefault": "Me (current user)",
+    "loadFlight": "Load Flight",
+    "flightLoaded": "Flight loaded",
+    "flightLoadedDescription": "The historical flight was recorded successfully.",
+    "downloadTemplate": "Download CSV Template",
+    "chooseFile": "Choose CSV file",
+    "csvHelp": "Download the template, fill it in, and upload it. For more than one passenger per flight, use the pasajeros_adicionales column with the format Name:type:number, separating each passenger with a semicolon.",
+    "validRows": "{count} valid row(s)",
+    "parsingErrors": "{count} row(s) with errors",
+    "importValid": "Import {count} valid flight(s)",
+    "importSummary": "Import summary",
+    "importResultDescription": "{succeeded} flight(s) loaded, {failed} failed.",
+    "importSucceeded": "{count} flight(s) loaded",
+    "importFailedCount": "{count} row(s) failed",
+    "downloadFailedRows": "Download failed rows",
+    "tableHeaders": {
+      "row": "Row",
+      "date": "Date & time",
+      "registration": "Registration",
+      "passenger": "Passenger",
+      "status": "Status"
+    }
   },
 
   "adminSettings": {

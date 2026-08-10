@@ -105,7 +105,8 @@
     "profile": "Perfil",
     "admin": "Admin",
     "members": "Miembros",
-    "alerts": "Alertas"
+    "alerts": "Alertas",
+    "historicalBookings": "Cargar Vuelos Pasados"
   },
 
   "roles": {
@@ -161,6 +162,7 @@
     "date": "Fecha",
     "selectDate": "Seleccionar fecha",
     "startTime": "Hora de Inicio",
+    "endTime": "Hora de Fin",
     "duration": "Duración",
     "purpose": "Propósito",
     "purposePlaceholder": "ej., Transporte médico, Llegada VIP",
@@ -448,6 +450,36 @@
     "metadata": "Metadatos",
     "bookingId": "ID de Reserva",
     "createdAt": "Creada"
+  },
+
+  "historicalBookings": {
+    "title": "Cargar Vuelos Pasados",
+    "description": "Registra vuelos que ya ocurrieron pero que nadie cargó a tiempo. Solo para administradores.",
+    "tabIndividual": "Individual",
+    "tabBulk": "Carga Masiva",
+    "assignToUser": "Asociar a Usuario (opcional)",
+    "assignToUserDefault": "Yo (usuario actual)",
+    "loadFlight": "Cargar Vuelo",
+    "flightLoaded": "Vuelo cargado",
+    "flightLoadedDescription": "El vuelo histórico fue registrado correctamente.",
+    "downloadTemplate": "Descargar Plantilla CSV",
+    "chooseFile": "Elegir archivo CSV",
+    "csvHelp": "Descarga la plantilla, complétala y súbela. Para más de un pasajero por vuelo usa la columna pasajeros_adicionales con el formato Nombre:tipo:numero separando cada pasajero con punto y coma.",
+    "validRows": "{count} fila(s) válida(s)",
+    "parsingErrors": "{count} fila(s) con errores",
+    "importValid": "Importar {count} vuelo(s) válido(s)",
+    "importSummary": "Resumen de la importación",
+    "importResultDescription": "{succeeded} vuelo(s) cargados, {failed} fallaron.",
+    "importSucceeded": "{count} vuelo(s) cargados",
+    "importFailedCount": "{count} fila(s) fallaron",
+    "downloadFailedRows": "Descargar filas con error",
+    "tableHeaders": {
+      "row": "Fila",
+      "date": "Fecha y hora",
+      "registration": "Matrícula",
+      "passenger": "Pasajero",
+      "status": "Estado"
+    }
   },
 
   "adminSettings": {
