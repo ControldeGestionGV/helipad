@@ -63,7 +63,7 @@ async function seed() {
   const defaultSettingsData = [
     {
       key: "operationalHours",
-      value: JSON.stringify({ start: "06:00", end: "22:00" }),
+      value: JSON.stringify({ start: "08:00", end: "18:00" }),
     },
     {
       key: "timeSlotDuration",
@@ -71,15 +71,15 @@ async function seed() {
     },
     {
       key: "minBookingNotice",
-      value: JSON.stringify(60),
+      value: JSON.stringify(30),
     },
     {
       key: "maxBookingDuration",
-      value: JSON.stringify(240),
+      value: JSON.stringify(30),
     },
     {
       key: "cancellationCutoff",
-      value: JSON.stringify(60),
+      value: JSON.stringify(10),
     },
     {
       key: "blackoutDates",

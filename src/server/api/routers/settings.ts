@@ -5,14 +5,15 @@ import { eq } from "drizzle-orm";
 
 // Default settings values
 export const defaultSettings = {
+  // Valores segun el Reglamento de Operaciones del Helipuerto (Anexo A, v2 21.09.2026)
   operationalHours: {
-    start: "06:00",
-    end: "22:00",
+    start: "08:00", // Art. 5.1
+    end: "18:00",
   },
-  timeSlotDuration: 15, // minutes
-  minBookingNotice: 60, // minutes before booking starts
-  maxBookingDuration: 240, // minutes (4 hours)
-  cancellationCutoff: 60, // minutes before booking starts
+  timeSlotDuration: 15, // minutes (calendar grid)
+  minBookingNotice: 30, // minutes before booking starts (Art. 6.1)
+  maxBookingDuration: 30, // minutes - duration of the assigned slot, landing to takeoff (Art. 19.1)
+  cancellationCutoff: 10, // minutes before booking starts; later = late cancellation (Art. 6.4)
   blackoutDates: [] as string[], // ISO date strings
   emailNotifications: {
     confirmationEnabled: true,
@@ -20,6 +21,10 @@ export const defaultSettings = {
     reminderHoursBefore: 24,
     adminNotificationsEnabled: true,
     approverEmails: [] as string[],
+  },
+  membershipUsage: {
+    annualUsageLimit: 36, // Operaciones Incluidas per membership period (Contrato 2.4)
+    overageAmount: 350, // USD per Operacion Computable beyond the limit, plus taxes (Contrato 2.4)
   },
 };
 

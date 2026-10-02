@@ -14,6 +14,8 @@ interface Member {
   membershipStartDate: Date | string;
   membershipEndDate: Date | string;
   isActive: boolean;
+  memberCode: string | null;
+  subMemberCount?: number;
 }
 
 interface MembersTableProps {
@@ -32,6 +34,7 @@ export function MembersTable({ members, onEdit, onDelete, isReadOnly }: MembersT
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead>{t("adminMembers.tableHeaders.code")}</TableHead>
           <TableHead>{t("adminMembers.tableHeaders.name")}</TableHead>
           <TableHead>{t("adminMembers.tableHeaders.identification")}</TableHead>
           <TableHead>{t("adminMembers.tableHeaders.validity")}</TableHead>
@@ -42,7 +45,7 @@ export function MembersTable({ members, onEdit, onDelete, isReadOnly }: MembersT
       <TableBody>
         {members.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={5} className="text-center text-zinc-400 py-8">
+            <TableCell colSpan={6} className="text-center text-zinc-400 py-8">
               {t("adminMembers.noMembersFound")}
             </TableCell>
           </TableRow>
@@ -51,6 +54,14 @@ export function MembersTable({ members, onEdit, onDelete, isReadOnly }: MembersT
             const expired = isExpired(member.membershipEndDate);
             return (
               <TableRow key={member.id}>
+                <TableCell className="text-zinc-600">
+                  {member.memberCode ?? "-"}
+                  {!!member.subMemberCount && (
+                    <span className="ml-1.5 inline-flex items-center text-xs text-zinc-400">
+                      · +{member.subMemberCount}
+                    </span>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium text-zinc-900">
                   {member.firstName} {member.lastName}
                 </TableCell>

@@ -30,9 +30,19 @@ const memberFormSchema = z.object({
   membershipEndDate: z.string().min(1, "End date is required"),
   notes: z.string().max(500).optional(),
   isActive: z.boolean(),
+  memberCode: z.string().min(1, "Member code is required").max(50),
 });
 
 type MemberFormData = z.infer<typeof memberFormSchema>;
+
+interface SubMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  identificationNumber: string;
+  memberCode: string | null;
+  isActive: boolean;
+}
 
 interface Member {
   id: string;
@@ -44,7 +54,9 @@ interface Member {
   membershipEndDate: Date | string;
   notes: string | null;
   isActive: boolean;
+  memberCode: string | null;
   aircraft?: Array<{ id: string; registration: string }>;
+  subMembers?: SubMember[];
 }
 
 interface MemberFormProps {
@@ -64,6 +76,12 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
   const { t } = useTranslations();
   const isEditing = !!member;
   const [newAircraft, setNewAircraft] = useState("");
+  const [newSubMember, setNewSubMember] = useState({
+    firstName: "",
+    lastName: "",
+    identificationType: "cedula" as "cedula" | "passport" | "other",
+    identificationNumber: "",
+  });
 
   const utils = trpc.useUtils();
   const addAircraft = trpc.members.addAircraft.useMutation({
@@ -73,6 +91,15 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
     },
   });
   const removeAircraft = trpc.members.removeAircraft.useMutation({
+    onSuccess: () => utils.members.getById.invalidate({ id: member!.id }),
+  });
+  const addSubMember = trpc.members.addSubMember.useMutation({
+    onSuccess: () => {
+      utils.members.getById.invalidate({ id: member!.id });
+      setNewSubMember({ firstName: "", lastName: "", identificationType: "cedula", identificationNumber: "" });
+    },
+  });
+  const deactivateSubMember = trpc.members.update.useMutation({
     onSuccess: () => utils.members.getById.invalidate({ id: member!.id }),
   });
 
@@ -98,6 +125,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
               membershipEndDate: toDateInputValue(member.membershipEndDate),
               notes: member.notes ?? "",
               isActive: member.isActive,
+              memberCode: member.memberCode ?? "",
             }
           : {
               firstName: "",
@@ -110,6 +138,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
                 .slice(0, 10),
               notes: "",
               isActive: true,
+              memberCode: "",
             }
       );
     }
@@ -157,6 +186,19 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
                 <Input id="lastName" {...register("lastName")} error={!!errors.lastName} />
                 {errors.lastName && <p className="text-xs text-red-600">{errors.lastName.message}</p>}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memberCode" required>
+                {t("memberForm.memberCode")}
+              </Label>
+              <Input
+                id="memberCode"
+                placeholder={t("memberForm.memberCodePlaceholder")}
+                {...register("memberCode")}
+                error={!!errors.memberCode}
+              />
+              {errors.memberCode && <p className="text-xs text-red-600">{errors.memberCode.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -268,6 +310,92 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
                     {t("memberForm.addAircraft")}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {isEditing && (
+              <div className="space-y-2 pt-2 border-t border-zinc-100">
+                <Label>{t("memberForm.groupSection")}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {member!.subMembers && member!.subMembers.length > 0 ? (
+                    member!.subMembers.map((s) => (
+                      <span
+                        key={s.id}
+                        className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${
+                          s.isActive ? "bg-zinc-100 text-zinc-700" : "bg-zinc-50 text-zinc-400 line-through"
+                        }`}
+                      >
+                        {s.memberCode ? `${s.memberCode} · ` : ""}
+                        {s.firstName} {s.lastName}
+                        {s.isActive && (
+                          <button
+                            type="button"
+                            onClick={() => deactivateSubMember.mutate({ id: s.id, isActive: false })}
+                            className="text-zinc-400 hover:text-red-600 cursor-pointer"
+                            title={t("memberForm.deactivateSubMember")}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-sm text-zinc-400">{t("memberForm.noSubMembers")}</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder={t("memberForm.firstName")}
+                    value={newSubMember.firstName}
+                    onChange={(e) => setNewSubMember((s) => ({ ...s, firstName: e.target.value }))}
+                  />
+                  <Input
+                    placeholder={t("memberForm.lastName")}
+                    value={newSubMember.lastName}
+                    onChange={(e) => setNewSubMember((s) => ({ ...s, lastName: e.target.value }))}
+                  />
+                  <Select
+                    value={newSubMember.identificationType}
+                    onChange={(e) =>
+                      setNewSubMember((s) => ({
+                        ...s,
+                        identificationType: e.target.value as "cedula" | "passport" | "other",
+                      }))
+                    }
+                  >
+                    <option value="cedula">{t("passengers.cedula")}</option>
+                    <option value="passport">{t("passengers.passport")}</option>
+                    <option value="other">{t("passengers.other")}</option>
+                  </Select>
+                  <Input
+                    placeholder={t("memberForm.identificationNumber")}
+                    value={newSubMember.identificationNumber}
+                    onChange={(e) => setNewSubMember((s) => ({ ...s, identificationNumber: e.target.value }))}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    !newSubMember.firstName.trim() ||
+                    !newSubMember.lastName.trim() ||
+                    !newSubMember.identificationNumber.trim() ||
+                    addSubMember.isPending
+                  }
+                  onClick={() =>
+                    addSubMember.mutate({
+                      parentMemberId: member!.id,
+                      firstName: newSubMember.firstName.trim(),
+                      lastName: newSubMember.lastName.trim(),
+                      identificationType: newSubMember.identificationType,
+                      identificationNumber: newSubMember.identificationNumber.trim(),
+                    })
+                  }
+                >
+                  <Plus className="w-4 h-4" />
+                  {t("memberForm.addSubMember")}
+                </Button>
               </div>
             )}
           </DialogBody>

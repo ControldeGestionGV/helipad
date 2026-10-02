@@ -27,7 +27,16 @@ type Member = {
   membershipEndDate: Date | string;
   notes: string | null;
   isActive: boolean;
+  memberCode: string | null;
   aircraft?: Array<{ id: string; registration: string }>;
+  subMembers?: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    identificationNumber: string;
+    memberCode: string | null;
+    isActive: boolean;
+  }>;
 };
 
 type Vip = {
@@ -131,7 +140,11 @@ export default function MembersPage() {
   };
 
   const activeMemberForForm: Member | null = editingMember
-    ? { ...editingMember, aircraft: memberDetailQuery.data?.aircraft }
+    ? {
+        ...editingMember,
+        aircraft: memberDetailQuery.data?.aircraft,
+        subMembers: memberDetailQuery.data?.subMembers,
+      }
     : null;
 
   return (

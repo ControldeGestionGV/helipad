@@ -93,6 +93,7 @@
   },
 
   "navigation": {
+    "checkIn": "Control de Acceso",
     "bookings": "Reservas",
     "calendar": "Calendario",
     "myBookings": "Mis Reservas",
@@ -157,6 +158,11 @@
   },
 
   "bookings": {
+    "pilotNameOptional": "Piloto al mando (opcional)",
+    "pilotNamePlaceholder": "Nombre completo del piloto",
+    "declaredPeopleOptional": "Número de personas (opcional)",
+    "declaredPeoplePlaceholder": "ej., 4",
+    "declaredPeopleHint": "Pasajeros, invitados al lounge y tripulación. Si se deja vacío, se toma la cantidad de pasajeros registrados.",
     "bookHelipad": "Reservar Helipuerto",
     "selectTimeSlot": "Selecciona tu horario preferido y proporciona los detalles de la reserva.",
     "date": "Fecha",
@@ -180,10 +186,11 @@
     "updateBooking": "Actualizar Reserva",
     "updateTimeSlot": "Modifica los detalles de la reserva a continuación.",
     "bookingEndsAt": "La reserva termina a las",
-    "fixedDuration": "10 minutos",
+    "fixedDuration": "{minutes} minutos",
     "fixedDurationBooking": "de reserva",
     "endsAt": "Termina:",
-    "bufferInfo": "+ 5 minutos de margen para salida (próximo horario disponible 15 min después del inicio)",
+    "bufferInfo": "Franja de aterrizaje a despegue (Reglamento Art. 19.1) + 5 minutos de margen antes del siguiente horario",
+    "ruleWarningNotice": "Esta reserva es una excepción al Reglamento ({warnings}). Se registrará igualmente y el operador podrá verla.",
     "dateTime": "Fecha y Hora",
     "flightDetails": "Detalles del Vuelo",
     "durations": {
@@ -225,6 +232,8 @@
   },
 
   "bookingDetails": {
+    "pilotName": "Piloto al mando",
+    "declaredPeople": "Personas declaradas",
     "title": "Detalles de la Reserva",
     "date": "Fecha",
     "time": "Hora",
@@ -343,6 +352,7 @@
     "noMembersFound": "No se encontraron miembros",
     "noVipsFound": "No se encontraron VIP",
     "tableHeaders": {
+      "code": "Código",
       "name": "Nombre",
       "identification": "Identificación",
       "validity": "Vigencia",
@@ -367,10 +377,16 @@
     "membershipStartDate": "Inicio de Vigencia",
     "membershipEndDate": "Fin de Vigencia",
     "notes": "Notas (opcional)",
+    "memberCode": "Código de Miembro",
+    "memberCodePlaceholder": "Ej. 8814",
     "aircraftSection": "Aeronaves habituales (informativo, no restringe cuál puede volar)",
     "aircraftPlaceholder": "Matrícula, ej. N123AB",
     "addAircraft": "Agregar",
     "noAircraft": "Sin aeronaves declaradas",
+    "groupSection": "Grupo familiar/empresarial",
+    "noSubMembers": "Sin sub-miembros agregados",
+    "addSubMember": "Agregar sub-miembro",
+    "deactivateSubMember": "Desactivar",
     "createMember": "Crear Miembro",
     "updateMember": "Actualizar Miembro"
   },
@@ -390,8 +406,10 @@
   },
 
   "adminAlerts": {
-    "title": "Alertas de Uso Indebido",
-    "description": "Aeronaves que aterrizaron 2 o más veces sin ningún titular a bordo en los últimos 6 meses",
+    "title": "Alertas",
+    "description": "Uso indebido del helipuerto y excedentes de cupo de membresía",
+    "tabMisuse": "Uso Indebido",
+    "tabUsageOverage": "Excedente de Uso",
     "noAlerts": "No hay alertas abiertas",
     "tableHeaders": {
       "registration": "Matrícula",
@@ -403,11 +421,17 @@
     "open": "Abierta",
     "acknowledged": "Revisada",
     "acknowledge": "Marcar como revisada",
-    "acknowledgedBy": "Revisada por"
+    "acknowledgedBy": "Revisada por",
+    "usageOverage": {
+      "tableHeaders": {
+        "member": "Miembro",
+        "count": "Usos en el período",
+        "period": "Período de membresía"
+      }
+    }
   },
 
   "noTitularBadge": "Sin titular a bordo",
-
   "adminBookings": {
     "title": "Todas las Reservas",
     "description": "Ver y gestionar todas las reservas del helipuerto",
@@ -491,8 +515,15 @@
       "openingTime": "Hora de Apertura",
       "closingTime": "Hora de Cierre",
       "timeSlotDuration": "Duración del Horario",
-      "maxBookingDuration": "Duración Máxima de Reserva",
-      "minAdvanceNotice": "Anticipación Mínima"
+      "maxBookingDuration": "Duración de la Franja (aterrizaje a despegue)",
+      "minAdvanceNotice": "Anticipación Mínima",
+      "cancellationCutoff": "Cancelación sin Penalidad (antelación)"
+    },
+    "membershipUsage": {
+      "title": "Uso de Membresía",
+      "description": "Límite de usos anuales por membresía y monto a cobrar por excedente",
+      "annualUsageLimit": "Límite de Usos Anuales",
+      "overageAmount": "Monto por Uso Excedente (USD)"
     },
     "blackoutDates": {
       "title": "Fechas Bloqueadas",
@@ -532,8 +563,10 @@
     },
     "durations": {
       "none": "Ninguna",
+      "10min": "10 minutos",
       "15min": "15 minutos",
       "30min": "30 minutos",
+      "45min": "45 minutos",
       "1hour": "1 hora",
       "2hours": "2 horas",
       "3hours": "3 horas",
@@ -606,6 +639,58 @@
     "newBooking": "Nueva reserva",
     "someoneBooked": "Alguien acaba de hacer una reserva. Calendario actualizado.",
     "bookingCancelledByOther": "Una reserva fue cancelada. Calendario actualizado."
+  },
+
+  "ruleWarnings": {
+    "outside_hours": "Fuera de horario",
+    "short_notice": "Aviso con poca antelación",
+    "blackout_date": "Día bloqueado",
+    "long_duration": "Franja extendida",
+    "late_cancellation": "Cancelación tardía"
+  },
+
+  "checkIn": {
+    "title": "Verificación de Acceso",
+    "listTitle": "Control de Acceso",
+    "refresh": "Actualizar",
+    "backToList": "Lista del día",
+    "scanHint": "Escanea el QR del miembro con la cámara del teléfono para abrir su reserva. Si el QR no está disponible, busca la reserva aquí y regístrala manualmente.",
+    "searchPlaceholder": "Buscar por pasajero, miembro, piloto o matrícula",
+    "noBookings": "No hay reservas confirmadas para hoy.",
+    "entered": "ingresaron",
+    "aircraft": "Aeronave",
+    "pilot": "Piloto",
+    "bookedBy": "Reservado por",
+    "notProvided": "No indicado",
+    "passengers": "Pasajeros registrados ({count})",
+    "declaredPeople": "{count} personas declaradas",
+    "verifyIdentity": "El QR no acredita identidad: verifica que cada persona figure en la lista y que el miembro esté presente.",
+    "peopleEntering": "Personas que entran",
+    "register": "Registrar entrada",
+    "registerException": "Registrar como excepción",
+    "exceptionNotice": "El QR no está vigente en este momento. Puedes registrar la entrada como excepción indicando el motivo.",
+    "exceptionExceeds": "Excede las personas pendientes ({remaining}). Se registrará como excepción; indica el motivo.",
+    "notePlaceholder": "Motivo (obligatorio para excepciones)",
+    "registered": "Entrada registrada",
+    "registerFailed": "No se pudo registrar la entrada",
+    "log": "Registro de entradas",
+    "logPeople": "{count} persona(s)",
+    "manual": "verificación manual",
+    "exception": "excepción",
+    "unknownCodeTitle": "Código no válido",
+    "unknownCodeDescription": "Este QR no corresponde a ninguna reserva. Busca la reserva en la lista del día.",
+    "staffOnlyTitle": "Solo para personal de seguridad",
+    "staffOnlyDescription": "Presenta este código al personal de seguridad del helipuerto.",
+    "myQrTitle": "Código de acceso",
+    "myQrInstructions": "Presenta este QR al llegar. Cubre a todas las personas registradas en la reserva.",
+    "states": {
+      "valid": "QR válido",
+      "not_yet": "Aún no vigente",
+      "expired": "Franja vencida",
+      "exhausted": "Personas completas",
+      "cancelled": "Reserva cancelada",
+      "pending": "Reserva no confirmada"
+    }
   },
 
   "errors": {
@@ -692,6 +777,8 @@
   },
 
   "emails": {
+    "accessQrTitle": "Tu código de acceso",
+    "accessQrInstructions": "Presenta este código QR al personal de seguridad al llegar. Es válido solo para esta reserva y cubre a todas las personas registradas. No lo compartas fuera de tu grupo.",
     "bookingConfirmed": "¡Reserva Confirmada!",
     "bookingConfirmedGreeting": "Hola {{userName}}, tu reserva de helipuerto ha sido confirmada.",
     "date": "Fecha",

@@ -14,6 +14,8 @@ import {
 import { createApprovalToken } from "@/lib/approval-tokens";
 import { checkMembershipForPassengers } from "@/server/services/membership";
 import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
+import { checkAndTriggerUsageOverage } from "@/server/services/usage-alerts";
+import { getBookingRules, getRuleWarnings, isLateCancellation } from "@/server/services/booking-rules";
 import { historicalBookingInputSchema, type HistoricalBookingInput } from "@/lib/validations";
 import type { DbClient } from "@/server/db";
 
@@ -108,6 +110,12 @@ async function insertHistoricalBooking(
     );
   }
 
+  // Independent of membershipStatus above (which prioritizes "vip" over "member" when both
+  // are aboard) - does its own matching, so it still catches a member sharing a flight with a VIP.
+  await checkAndTriggerUsageOverage(input.passengers).catch((err) =>
+    console.error("Failed to check usage overage alert:", err)
+  );
+
   return newBooking;
 }
 
@@ -138,8 +146,11 @@ export const bookingsRouter = createTRPCRouter({
           notes: bookings.notes,
           contactPhone: bookings.contactPhone,
           helicopterRegistration: bookings.helicopterRegistration,
+          pilotName: bookings.pilotName,
+          declaredPeople: bookings.declaredPeople,
           status: bookings.status,
           membershipStatus: bookings.membershipStatus,
+          ruleWarnings: bookings.ruleWarnings,
           user: {
             id: users.id,
             firstName: users.firstName,
@@ -182,8 +193,11 @@ export const bookingsRouter = createTRPCRouter({
           notes: bookings.notes,
           contactPhone: bookings.contactPhone,
           helicopterRegistration: bookings.helicopterRegistration,
+          pilotName: bookings.pilotName,
+          declaredPeople: bookings.declaredPeople,
           status: bookings.status,
           membershipStatus: bookings.membershipStatus,
+          ruleWarnings: bookings.ruleWarnings,
           user: {
             id: users.id,
             firstName: users.firstName,
@@ -293,6 +307,8 @@ export const bookingsRouter = createTRPCRouter({
         notes: z.string().max(1000).optional(),
         contactPhone: z.string().max(20).optional(),
         helicopterRegistration: z.string().min(1, "Helicopter registration is required").max(50),
+        pilotName: z.string().max(255).optional(),
+        declaredPeople: z.number().int().min(1).max(99).optional(),
         passengers: z.array(passengerInputSchema).min(1, "At least one passenger is required"),
       })
     )
@@ -315,6 +331,10 @@ export const bookingsRouter = createTRPCRouter({
           message: "Cannot book time slots in the past",
         });
       }
+
+      // Reglamento Art. 5.1, 6.1 y 19.1: no bloquean (hay avisos de ultimo minuto y operaciones
+      // fuera de horario), solo se registran como excepciones en la reserva.
+      const ruleWarnings = getRuleWarnings(start, end, await getBookingRules(ctx.db));
 
       // Check for conflicts (including 5-minute buffer after each booking)
       const BUFFER_MINUTES = 5;
@@ -359,8 +379,11 @@ export const bookingsRouter = createTRPCRouter({
           notes: input.notes,
           contactPhone: input.contactPhone,
           helicopterRegistration: input.helicopterRegistration,
+          pilotName: input.pilotName?.trim() || null,
+          declaredPeople: input.declaredPeople ?? null,
           status: bookingStatus,
           membershipStatus,
+          ruleWarnings: ruleWarnings.length > 0 ? ruleWarnings : null,
         })
         .returning();
 
@@ -389,6 +412,14 @@ export const bookingsRouter = createTRPCRouter({
       if (bookingStatus === "confirmed" && membershipStatus === "none" && input.helicopterRegistration) {
         await checkAndTriggerMisuseAlert(input.helicopterRegistration).catch((err) =>
           console.error("Failed to check misuse alert:", err)
+        );
+      }
+
+      // Independent of membershipStatus above (which prioritizes "vip" over "member" when both
+      // are aboard) - does its own matching, so it still catches a member sharing a flight with a VIP.
+      if (bookingStatus === "confirmed") {
+        await checkAndTriggerUsageOverage(input.passengers).catch((err) =>
+          console.error("Failed to check usage overage alert:", err)
         );
       }
 
@@ -469,6 +500,9 @@ export const bookingsRouter = createTRPCRouter({
         notes: z.string().max(1000).optional(),
         contactPhone: z.string().max(20).optional(),
         helicopterRegistration: z.string().min(1).max(50).optional(),
+        // null clears the value when the field is emptied while editing
+        pilotName: z.string().max(255).nullable().optional(),
+        declaredPeople: z.number().int().min(1).max(99).nullable().optional(),
         passengers: z.array(passengerInputSchema).optional(),
       })
     )
@@ -512,6 +546,9 @@ export const bookingsRouter = createTRPCRouter({
         });
       }
 
+      // Recomputed only when the times change; undefined leaves the stored value untouched
+      let ruleWarnings: string[] | null | undefined;
+
       // If times are being updated, check for conflicts
       if (updateData.startTime || updateData.endTime) {
         const start = updateData.startTime ? new Date(updateData.startTime) : existing.startTime;
@@ -530,6 +567,9 @@ export const bookingsRouter = createTRPCRouter({
             message: "Cannot book time slots in the past",
           });
         }
+
+        const warnings = getRuleWarnings(start, end, await getBookingRules(ctx.db));
+        ruleWarnings = warnings.length > 0 ? warnings : null;
 
         // Check for conflicts (including 5-minute buffer)
         const BUFFER_MINUTES = 5;
@@ -617,6 +657,7 @@ export const bookingsRouter = createTRPCRouter({
           startTime: updateData.startTime ? new Date(updateData.startTime) : undefined,
           endTime: updateData.endTime ? new Date(updateData.endTime) : undefined,
           membershipStatus,
+          ruleWarnings,
           updatedAt: new Date(),
         })
         .where(eq(bookings.id, id))
@@ -629,6 +670,14 @@ export const bookingsRouter = createTRPCRouter({
       ) {
         await checkAndTriggerMisuseAlert(updated.helicopterRegistration).catch((err) =>
           console.error("Failed to check misuse alert:", err)
+        );
+      }
+
+      // Only recomputed when the passenger list actually changed, same condition as
+      // membershipStatus above. Independent of it otherwise - see note in `create`.
+      if (passengerUpdates && updated.status === "confirmed") {
+        await checkAndTriggerUsageOverage(passengerUpdates).catch((err) =>
+          console.error("Failed to check usage overage alert:", err)
         );
       }
 
@@ -668,12 +717,21 @@ export const bookingsRouter = createTRPCRouter({
         columns: { firstName: true, lastName: true, email: true },
       });
 
+      // Art. 6.4: el miembro puede cancelar siempre, pero si lo hace con menos antelacion que el
+      // corte sobre una reserva confirmada, queda marcada como cancelacion tardia. Las
+      // cancelaciones del operador (admin) no cuentan.
+      const lateCancellation =
+        ctx.session.user.role !== "admin" &&
+        existing.status === "confirmed" &&
+        isLateCancellation(existing.startTime, await getBookingRules(ctx.db));
+
       const [cancelled] = await ctx.db
         .update(bookings)
         .set({
           status: "cancelled",
           cancelledAt: new Date(),
           cancelledBy: ctx.session.user.id,
+          lateCancellation,
           updatedAt: new Date(),
         })
         .where(eq(bookings.id, input.id))
@@ -756,8 +814,12 @@ export const bookingsRouter = createTRPCRouter({
           contactPhone: bookings.contactPhone,
           passengers: bookings.passengers,
           helicopterRegistration: bookings.helicopterRegistration,
+          pilotName: bookings.pilotName,
+          declaredPeople: bookings.declaredPeople,
           status: bookings.status,
           membershipStatus: bookings.membershipStatus,
+          ruleWarnings: bookings.ruleWarnings,
+          lateCancellation: bookings.lateCancellation,
           createdAt: bookings.createdAt,
           cancelledAt: bookings.cancelledAt,
           user: {
@@ -801,6 +863,7 @@ export const bookingsRouter = createTRPCRouter({
               email: true,
             },
           },
+          passengers: true,
         },
       });
 
@@ -871,6 +934,10 @@ export const bookingsRouter = createTRPCRouter({
           console.error("Failed to check misuse alert:", err)
         );
       }
+
+      await checkAndTriggerUsageOverage(existing.passengers).catch((err) =>
+        console.error("Failed to check usage overage alert:", err)
+      );
 
       // Send confirmation email
       if (existing.user?.email) {

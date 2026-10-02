@@ -3,15 +3,16 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import { 
-  Clock, 
-  Calendar, 
-  Bell, 
-  Save, 
-  Plus, 
-  X, 
+import {
+  Clock,
+  Calendar,
+  Bell,
+  Save,
+  Plus,
+  X,
   Loader2,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Users,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useTranslations } from "@/hooks/use-translations";
@@ -30,11 +31,11 @@ export default function SettingsPage() {
   const utils = trpc.useUtils();
 
   // Form state
-  const [operationalHours, setOperationalHours] = useState({ start: "06:00", end: "22:00" });
+  const [operationalHours, setOperationalHours] = useState({ start: "08:00", end: "18:00" });
   const [timeSlotDuration, setTimeSlotDuration] = useState(15);
-  const [minBookingNotice, setMinBookingNotice] = useState(60);
-  const [maxBookingDuration, setMaxBookingDuration] = useState(240);
-  const [cancellationCutoff, setCancellationCutoff] = useState(60);
+  const [minBookingNotice, setMinBookingNotice] = useState(30);
+  const [maxBookingDuration, setMaxBookingDuration] = useState(30);
+  const [cancellationCutoff, setCancellationCutoff] = useState(10);
   const [blackoutDates, setBlackoutDates] = useState<string[]>([]);
   const [newBlackoutDate, setNewBlackoutDate] = useState("");
   const [emailSettings, setEmailSettings] = useState({
@@ -45,6 +46,7 @@ export default function SettingsPage() {
     approverEmails: [] as string[],
   });
   const [newApproverEmail, setNewApproverEmail] = useState("");
+  const [membershipUsage, setMembershipUsage] = useState({ annualUsageLimit: 36, overageAmount: 350 });
 
   // Update form when settings load
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function SettingsPage() {
         ...settings.emailNotifications,
         approverEmails: settings.emailNotifications.approverEmails ?? [],
       });
+      setMembershipUsage(settings.membershipUsage);
     }
   }, [settings]);
 
@@ -121,6 +124,12 @@ export default function SettingsPage() {
       settings: {
         emailNotifications: emailSettings,
       },
+    });
+  };
+
+  const handleSaveMembershipUsage = () => {
+    updateSettings.mutate({
+      settings: { membershipUsage },
     });
   };
 
@@ -217,7 +226,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="space-y-2">
             <Label>{t("adminSettings.operationalHours.timeSlotDuration")}</Label>
             <Select
@@ -235,11 +244,10 @@ export default function SettingsPage() {
               value={maxBookingDuration.toString()}
               onChange={(e) => setMaxBookingDuration(Number(e.target.value))}
             >
+              <option value="15">{t("adminSettings.durations.15min")}</option>
+              <option value="30">{t("adminSettings.durations.30min")}</option>
+              <option value="45">{t("adminSettings.durations.45min")}</option>
               <option value="60">{t("adminSettings.durations.1hour")}</option>
-              <option value="120">{t("adminSettings.durations.2hours")}</option>
-              <option value="180">{t("adminSettings.durations.3hours")}</option>
-              <option value="240">{t("adminSettings.durations.4hours")}</option>
-              <option value="480">{t("adminSettings.durations.8hours")}</option>
             </Select>
           </div>
           <div className="space-y-2">
@@ -253,6 +261,19 @@ export default function SettingsPage() {
               <option value="60">{t("adminSettings.durations.1hour")}</option>
               <option value="120">{t("adminSettings.durations.2hours")}</option>
               <option value="1440">{t("adminSettings.durations.24hours")}</option>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{t("adminSettings.operationalHours.cancellationCutoff")}</Label>
+            <Select
+              value={cancellationCutoff.toString()}
+              onChange={(e) => setCancellationCutoff(Number(e.target.value))}
+            >
+              <option value="0">{t("adminSettings.durations.none")}</option>
+              <option value="10">{t("adminSettings.durations.10min")}</option>
+              <option value="15">{t("adminSettings.durations.15min")}</option>
+              <option value="30">{t("adminSettings.durations.30min")}</option>
+              <option value="60">{t("adminSettings.durations.1hour")}</option>
             </Select>
           </div>
         </div>
@@ -454,6 +475,52 @@ export default function SettingsPage() {
 
         <div className="flex justify-end">
           <Button onClick={handleSaveEmail} disabled={updateSettings.isPending}>
+            {updateSettings.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            <Save className="w-4 h-4" />
+            {t("common.saveChanges")}
+          </Button>
+        </div>
+      </div>
+
+      {/* Membership Usage */}
+      <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-brand-100 rounded-xl">
+            <Users className="w-5 h-5 text-brand-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-900">{t("adminSettings.membershipUsage.title")}</h2>
+            <p className="text-sm text-zinc-500">{t("adminSettings.membershipUsage.description")}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="space-y-2">
+            <Label>{t("adminSettings.membershipUsage.annualUsageLimit")}</Label>
+            <Input
+              type="number"
+              min={1}
+              value={membershipUsage.annualUsageLimit}
+              onChange={(e) =>
+                setMembershipUsage({ ...membershipUsage, annualUsageLimit: Number(e.target.value) })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{t("adminSettings.membershipUsage.overageAmount")}</Label>
+            <Input
+              type="number"
+              min={0}
+              value={membershipUsage.overageAmount}
+              onChange={(e) =>
+                setMembershipUsage({ ...membershipUsage, overageAmount: Number(e.target.value) })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={handleSaveMembershipUsage} disabled={updateSettings.isPending}>
             {updateSettings.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
             <Save className="w-4 h-4" />
             {t("common.saveChanges")}

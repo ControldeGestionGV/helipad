@@ -3,13 +3,14 @@
 import { useMemo } from "react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertTriangle, CalendarClock, Check, Clock, Phone, Plane, RefreshCw, User, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, Check, Clock, Phone, Plane, RefreshCw, User, Users, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSession } from "@/lib/auth-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { RuleWarningBadges } from "@/components/bookings/rule-warning-badges";
 
 export default function AdminOperationPage() {
   const { data: session } = useSession();
@@ -155,6 +156,10 @@ export default function AdminOperationPage() {
                         Sin titular a bordo
                       </Badge>
                     )}
+                    <RuleWarningBadges
+                      ruleWarnings={booking.ruleWarnings}
+                      lateCancellation={booking.lateCancellation}
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 text-sm text-zinc-600 md:grid-cols-2 xl:grid-cols-4">
@@ -168,8 +173,17 @@ export default function AdminOperationPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Plane className="h-4 w-4 text-zinc-400" />
-                      <span>{booking.helicopterRegistration || "Sin matricula"}</span>
+                      <span>
+                        {booking.helicopterRegistration || "Sin matricula"}
+                        {booking.pilotName ? ` · Piloto: ${booking.pilotName}` : ""}
+                      </span>
                     </div>
+                    {booking.declaredPeople && (
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-zinc-400" />
+                        <span>{booking.declaredPeople} personas declaradas</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-zinc-400" />
                       <span>{booking.contactPhone || "Sin telefono"}</span>

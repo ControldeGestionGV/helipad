@@ -10,6 +10,8 @@ import { passengersRouter } from "./routers/passengers";
 import { membersRouter } from "./routers/members";
 import { vipsRouter } from "./routers/vips";
 import { alertsRouter } from "./routers/alerts";
+import { usageAlertsRouter } from "./routers/usage-alerts";
+import { checkInRouter } from "./routers/check-in";
 
 /**
  * Root tRPC router combining all sub-routers
@@ -26,6 +28,8 @@ export const appRouter = createTRPCRouter({
   members: membersRouter,
   vips: vipsRouter,
   alerts: alertsRouter,
+  usageAlerts: usageAlertsRouter,
+  checkIn: checkInRouter,
 });
 
 export type AppRouter = typeof appRouter;

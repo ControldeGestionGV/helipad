@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { defaultSettings } from "@/server/api/routers/settings";
 import { GraphMailer } from "@/lib/email/graphMailer";
 import type { IMailer } from "@/lib/email/types";
+import { ensureAccessCode } from "@/server/services/access-control";
 import enTranslations from "@/lib/translations/en.json";
 import esTranslations from "@/lib/translations/es.json";
 
@@ -185,7 +186,7 @@ interface SendEmailOptions {
   html: string;
   userId?: string;
   bookingId?: string;
-  type: "confirmation" | "cancellation" | "reminder" | "password_reset" | "misuse_alert";
+  type: "confirmation" | "cancellation" | "reminder" | "password_reset" | "misuse_alert" | "usage_overage_alert";
 }
 
 /**
@@ -535,8 +536,95 @@ export async function sendMisuseAlertEmail(data: MisuseAlertData): Promise<boole
   return results.some(Boolean);
 }
 
+interface UsageOverageAlertData {
+  memberName: string;
+  memberCode: string | null;
+  usageCount: number;
+  annualUsageLimit: number;
+  overageAmount: number;
+  periodStart: Date;
+  periodEnd: Date;
+}
+
+export async function sendUsageOverageEmail(data: UsageOverageAlertData): Promise<boolean> {
+  const recipients = await getApprovalRecipients();
+
+  if (recipients.length === 0) {
+    return false;
+  }
+
+  const overageUses = data.usageCount - data.annualUsageLimit;
+
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Alerta de excedente de uso 📈</h2>
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      El miembro <strong>${escapeHtml(data.memberName)}</strong>${data.memberCode ? ` (codigo ${escapeHtml(data.memberCode)})` : ""}
+      ha usado el helipuerto <strong>${data.usageCount} veces</strong> en su periodo de membresia vigente,
+      superando el limite de <strong>${data.annualUsageLimit} usos</strong>.
+    </p>
+
+    <div style="background-color: #fef3c7; border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Miembro</td>
+          <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${escapeHtml(data.memberName)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Usos en el periodo</td>
+          <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${data.usageCount} (limite: ${data.annualUsageLimit})</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Usos excedentes</td>
+          <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${overageUses} x $${data.overageAmount} = $${overageUses * data.overageAmount}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Periodo de membresia</td>
+          <td style="padding: 8px 0; color: #78350f; font-size: 14px;">${data.periodStart.toLocaleDateString("es-DO")} - ${data.periodEnd.toLocaleDateString("es-DO")}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 14px;">
+      Esta es una notificacion informativa; no bloquea reservas futuras de este miembro. El monto de excedente
+      se factura por separado.
+    </p>
+
+    <a href="${APP_URL}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+      Ver alertas
+    </a>
+  `;
+
+  const results = await Promise.all(
+    recipients.map((to) =>
+      sendEmail({
+        to,
+        subject: `Alerta de excedente de uso - ${data.memberName}`,
+        html: baseTemplate(content),
+        type: "usage_overage_alert",
+      })
+    )
+  );
+
+  return results.some(Boolean);
+}
+
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<boolean> {
   const locale = data.locale || "en";
+
+  // Reglamento Art. 6.5: the access QR goes with the confirmation. Hosted image (not a data: URI,
+  // which Gmail/Outlook strip); it only encodes the check-in URL, no personal data.
+  const accessCode = await ensureAccessCode(data.bookingId).catch((err) => {
+    console.error("Failed to generate access code:", err);
+    return null;
+  });
+  const qrBlock = accessCode
+    ? `
+    <div style="text-align: center; border: 1px solid #e4e4e7; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+      <p style="margin: 0 0 12px; color: #18181b; font-size: 16px; font-weight: 600;">${t("emails.accessQrTitle", locale)}</p>
+      <img src="${APP_URL}/api/bookings/qr/${accessCode}" width="200" height="200" alt="QR" style="display: block; margin: 0 auto 12px;" />
+      <p style="margin: 0; color: #71717a; font-size: 13px; line-height: 1.5;">${t("emails.accessQrInstructions", locale)}</p>
+    </div>`
+    : "";
   
   const content = `
     <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${t("emails.bookingConfirmed", locale)} ✅</h2>
@@ -567,6 +655,8 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<b
       </table>
     </div>
     
+    ${qrBlock}
+
     <p style="margin: 0 0 24px; color: #52525b; font-size: 14px;">
       ${t("emails.needChanges", locale)}
     </p>

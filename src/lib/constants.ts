@@ -4,13 +4,13 @@ export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000
 
 // Time slot configuration
 export const TIME_SLOT_DURATION = 15; // minutes
-export const DEFAULT_START_HOUR = 6; // 6 AM
-export const DEFAULT_END_HOUR = 22; // 10 PM
+export const DEFAULT_START_HOUR = 8; // 8 AM (Reglamento Art. 5.1)
+export const DEFAULT_END_HOUR = 18; // 6 PM (Reglamento Art. 5.1)
 
 // Booking constraints
-export const MIN_BOOKING_NOTICE = 60; // minutes before booking starts
-export const MAX_BOOKING_DURATION = 240; // minutes (4 hours)
-export const CANCELLATION_CUTOFF = 60; // minutes before booking starts
+export const MIN_BOOKING_NOTICE = 30; // minutes before booking starts
+export const MAX_BOOKING_DURATION = 30; // minutes (Reglamento Art. 19.1)
+export const CANCELLATION_CUTOFF = 10; // minutes before booking starts
 
 // Pagination defaults
 export const DEFAULT_PAGE_SIZE = 10;
@@ -49,6 +49,7 @@ export const ROUTES = {
   newBooking: "/bookings/new",
   adminDashboard: "/admin",
   adminOperation: "/admin/operation",
+  adminCheckIn: "/admin/check-in",
   adminUsers: "/admin/users",
   adminBookings: "/admin/bookings",
   adminBookingsHistorical: "/admin/bookings/historical",

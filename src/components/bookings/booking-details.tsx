@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import { Loader2, Calendar, Clock, User, Phone, FileText, X, Check, Plane } from "lucide-react";
+import { Loader2, Calendar, Clock, User, Users, Phone, FileText, X, Check, Plane, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { useTranslations } from "@/hooks/use-translations";
 import { PassengerList } from "@/components/bookings/passenger-list";
+import { RuleWarningBadges } from "@/components/bookings/rule-warning-badges";
+import { AccessQr } from "@/components/bookings/access-qr";
 
 interface Booking {
   id: string;
@@ -25,7 +27,11 @@ interface Booking {
   notes?: string | null;
   contactPhone?: string | null;
   helicopterRegistration?: string | null;
+  pilotName?: string | null;
+  declaredPeople?: number | null;
   status: string;
+  ruleWarnings?: string[] | null;
+  lateCancellation?: boolean | null;
   user: {
     id: string;
     firstName: string;
@@ -106,6 +112,12 @@ export function BookingDetails({
             >
               {statusLabels[booking.status] || booking.status}
             </Badge>
+            {(isAdmin || isOwner) && (
+              <RuleWarningBadges
+                ruleWarnings={booking.ruleWarnings}
+                lateCancellation={booking.lateCancellation}
+              />
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -190,6 +202,33 @@ export function BookingDetails({
               </div>
             </div>
           )}
+
+          {/* Pilot in command & declared people (both optional) */}
+          {(booking.pilotName || booking.declaredPeople) && (
+            <div className="grid grid-cols-2 gap-4">
+              {booking.pilotName && (
+                <div className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
+                  <UserCheck className="w-5 h-5 text-brand-600 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-zinc-500 font-medium uppercase">{t("bookingDetails.pilotName")}</p>
+                    <p className="text-sm font-semibold text-zinc-900">{booking.pilotName}</p>
+                  </div>
+                </div>
+              )}
+              {booking.declaredPeople && (
+                <div className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl">
+                  <Users className="w-5 h-5 text-brand-600 mt-0.5" />
+                  <div>
+                    <p className="text-xs text-zinc-500 font-medium uppercase">{t("bookingDetails.declaredPeople")}</p>
+                    <p className="text-sm font-semibold text-zinc-900">{booking.declaredPeople}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Access QR (Reglamento Art. 6.5) */}
+          {isOwner && booking.status === "confirmed" && !isPast && <AccessQr bookingId={booking.id} />}
 
           {/* Passengers List */}
           <PassengerList

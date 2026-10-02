@@ -6,6 +6,11 @@ This directory contains SQL migration files for the Turso production database.
 
 - `0003_add_email_configurations.sql` - Adds email configuration table for Nodemailer
 - `0010_add_membership_module.sql` - Adds membership program (members, member aircraft registry, VIP list, misuse alerts) and `bookings.membership_status`
+- `0012_add_member_groups.sql` - Adds family/business membership groups (`members.member_code`, `members.parent_member_id`)
+- `0013_add_member_usage_alerts.sql` - Adds `member_usage_alerts` (annual usage quota overage) and an index on `members.identification_number_normalized`
+- `0014_align_reglamento_v2.sql` - Adds `bookings.late_cancellation` and `bookings.rule_warnings` (non-blocking exceptions: outside hours, short notice, blackout date, extended slot) and overwrites the booking settings with the Reglamento v2 / Contrato values (08:00-18:00, 30 min notice, 30 min slot, 10 min cancellation cutoff, 36 operations / US$350)
+- `0015_add_pilot_and_declared_people.sql` - Adds optional `bookings.pilot_name` and `bookings.declared_people` (Reglamento Art. 6.2 ii and iv)
+- `0016_add_access_codes_and_check_ins.sql` - Adds `bookings.access_code` (QR credential, unique) and the `booking_check_ins` access log (Reglamento Art. 6.5 / 12.7)
 
 ## 🚀 How to Apply Migrations to Turso
 

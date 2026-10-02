@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
 // Users table
@@ -26,6 +26,14 @@ export const bookings = sqliteTable("bookings", {
   contactPhone: text("contact_phone"),
   passengers: integer("passengers").notNull().default(1),
   helicopterRegistration: text("helicopter_registration"),
+  // Reglamento Art. 6.2 (ii): nombre del piloto al mando. Opcional, no bloquea la reserva.
+  pilotName: text("pilot_name"),
+  // Reglamento Art. 6.2 (iv): personas que accederan (pasajeros, invitados al lounge, tripulacion).
+  // Opcional; null = no declarado (se usa la cantidad de pasajeros registrados).
+  declaredPeople: integer("declared_people"),
+  // Credencial de acceso (Reglamento Art. 6.5): codigo aleatorio que va dentro del QR. Se genera
+  // la primera vez que se muestra o envia el QR de una reserva confirmada. Unico (ver migracion 0016).
+  accessCode: text("access_code"),
   status: text("status", { enum: ["pending", "confirmed", "cancelled"] }).notNull().default("confirmed"),
   // "member": un pasajero es titular de membresia activa. "vip": un pasajero esta en la lista VIP.
   // "none": ningun pasajero es titular ni VIP -> requiere aprobacion especial y cuenta para la alerta de uso indebido.
@@ -34,10 +42,32 @@ export const bookings = sqliteTable("bookings", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   cancelledAt: integer("cancelled_at", { mode: "timestamp" }),
   cancelledBy: text("cancelled_by").references(() => users.id),
+  // Cancelada por el miembro con menos antelacion que settings.cancellationCutoff (Reglamento Art. 6.4).
+  // Base para el conteo de cancelaciones tardias/no-show por periodo de membresia.
+  lateCancellation: integer("late_cancellation", { mode: "boolean" }).notNull().default(false),
+  // Excepciones al Reglamento al momento de reservar (JSON array de RuleWarning: fuera de horario,
+  // aviso corto, etc.). No bloquean la reserva; quedan para que el operador las vea. Null = ninguna.
+  ruleWarnings: text("rule_warnings", { mode: "json" }).$type<string[]>(),
   // Vuelo cargado retroactivamente (no reservado en tiempo real) via /admin/bookings/historical.
   isHistorical: integer("is_historical", { mode: "boolean" }).notNull().default(false),
   // Quien hizo la carga retroactiva. Puede diferir de userId (a nombre de quien queda el vuelo).
   createdBy: text("created_by").references(() => users.id),
+});
+
+// Access log (Reglamento Art. 6.5 / 12.7): each QR validation by security. One row per scan,
+// which may cover several people arriving together.
+export const bookingCheckIns = sqliteTable("booking_check_ins", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  bookingId: text("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+  people: integer("people").notNull(),
+  // Registered although the QR was outside its slot or the declared people were already used up.
+  // Flexible on purpose: security decides, the exception stays on record.
+  isException: integer("is_exception", { mode: "boolean" }).notNull().default(false),
+  // Manual verification (QR unavailable, searched by name) instead of a scan
+  isManual: integer("is_manual", { mode: "boolean" }).notNull().default(false),
+  note: text("note"),
+  checkedInBy: text("checked_in_by").references(() => users.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
 // Members table (membership program: annual, tied to a person, not to an aircraft)
@@ -53,6 +83,14 @@ export const members = sqliteTable("members", {
   membershipEndDate: integer("membership_end_date", { mode: "timestamp" }).notNull(),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   notes: text("notes"),
+  // Codigo del titular (ingresado a mano al firmar el contrato, ej. "8814"). Null en filas
+  // creadas antes de este campo. Unico via indice aparte (ver migracion 0012).
+  memberCode: text("member_code"),
+  // Null = titular. No-null = sub-miembro de un grupo familiar/empresarial, apunta al titular.
+  // Solo 2 niveles: se valida en la mutation que un sub-miembro no pueda tener sub-miembros.
+  parentMemberId: text("parent_member_id").references((): AnySQLiteColumn => members.id, {
+    onDelete: "cascade",
+  }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
@@ -93,6 +131,21 @@ export const misuseAlerts = sqliteTable("misuse_alerts", {
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
+// Member usage alerts: a member exceeded their annual usage quota (settings.membershipUsage).
+// Coexists with misuseAlerts (freeloaders with no member/VIP aboard) - opposite case: a
+// paying member who is using the helipad more than their membership allows.
+export const memberUsageAlerts = sqliteTable("member_usage_alerts", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  usageCount: integer("usage_count").notNull(),
+  periodStart: integer("period_start", { mode: "timestamp" }).notNull(),
+  periodEnd: integer("period_end", { mode: "timestamp" }).notNull(),
+  status: text("status", { enum: ["open", "acknowledged"] }).notNull().default("open"),
+  acknowledgedAt: integer("acknowledged_at", { mode: "timestamp" }),
+  acknowledgedBy: text("acknowledged_by").references(() => users.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
 // Settings table (key-value store)
 export const settings = sqliteTable("settings", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -127,7 +180,7 @@ export const emailLogs = sqliteTable("email_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   bookingId: text("booking_id").references(() => bookings.id, { onDelete: "set null" }),
-  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset", "misuse_alert"] }).notNull(),
+  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset", "misuse_alert", "usage_overage_alert"] }).notNull(),
   status: text("status", { enum: ["sent", "failed"] }).notNull(),
   sentAt: integer("sent_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   error: text("error"),
@@ -180,6 +233,18 @@ export const bookingsRelations = relations(bookings, ({ one, many }) => ({
   }),
   emailLogs: many(emailLogs),
   passengers: many(passengers),
+  checkIns: many(bookingCheckIns),
+}));
+
+export const bookingCheckInsRelations = relations(bookingCheckIns, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [bookingCheckIns.bookingId],
+    references: [bookings.id],
+  }),
+  checkedInByUser: one(users, {
+    fields: [bookingCheckIns.checkedInBy],
+    references: [users.id],
+  }),
 }));
 
 export const emailLogsRelations = relations(emailLogs, ({ one }) => ({
@@ -200,8 +265,15 @@ export const passengersRelations = relations(passengers, ({ one }) => ({
   }),
 }));
 
-export const membersRelations = relations(members, ({ many }) => ({
+export const membersRelations = relations(members, ({ one, many }) => ({
   aircraft: many(memberAircraft),
+  usageAlerts: many(memberUsageAlerts),
+  parentMember: one(members, {
+    fields: [members.parentMemberId],
+    references: [members.id],
+    relationName: "memberGroup",
+  }),
+  subMembers: many(members, { relationName: "memberGroup" }),
 }));
 
 export const memberAircraftRelations = relations(memberAircraft, ({ one }) => ({
@@ -214,6 +286,17 @@ export const memberAircraftRelations = relations(memberAircraft, ({ one }) => ({
 export const misuseAlertsRelations = relations(misuseAlerts, ({ one }) => ({
   acknowledgedByUser: one(users, {
     fields: [misuseAlerts.acknowledgedBy],
+    references: [users.id],
+  }),
+}));
+
+export const memberUsageAlertsRelations = relations(memberUsageAlerts, ({ one }) => ({
+  member: one(members, {
+    fields: [memberUsageAlerts.memberId],
+    references: [members.id],
+  }),
+  acknowledgedByUser: one(users, {
+    fields: [memberUsageAlerts.acknowledgedBy],
     references: [users.id],
   }),
 }));
@@ -238,4 +321,7 @@ export type Vip = typeof vips.$inferSelect;
 export type NewVip = typeof vips.$inferInsert;
 export type MisuseAlert = typeof misuseAlerts.$inferSelect;
 export type NewMisuseAlert = typeof misuseAlerts.$inferInsert;
+export type MemberUsageAlert = typeof memberUsageAlerts.$inferSelect;
+export type BookingCheckIn = typeof bookingCheckIns.$inferSelect;
+export type NewMemberUsageAlert = typeof memberUsageAlerts.$inferInsert;
 

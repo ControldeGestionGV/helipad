@@ -26,7 +26,10 @@ interface Booking {
   notes?: string | null;
   contactPhone?: string | null;
   helicopterRegistration?: string | null;
+  pilotName?: string | null;
+  declaredPeople?: number | null;
   status: string;
+  ruleWarnings?: string[] | null;
   user: {
     id: string;
     firstName: string;
@@ -58,6 +61,13 @@ export default function CalendarPage() {
     startDate: calendar.dateRange.start.toISOString(),
     endDate: calendar.dateRange.end.toISOString(),
   });
+
+  // Week/day grids cover at least 6:00-22:00: out-of-hours bookings are allowed (flagged as an
+  // exception to Reglamento Art. 5.1), so they must stay visible.
+  const { data: operationalHours } = trpc.settings.getOperationalHours.useQuery();
+  const startHour = Math.min(6, Number((operationalHours?.start ?? "08:00").split(":")[0]));
+  const [endH, endM] = (operationalHours?.end ?? "18:00").split(":").map(Number);
+  const endHour = Math.max(22, endM > 0 ? endH + 1 : endH);
 
   // SSE for real-time updates
   useSSE({
@@ -217,6 +227,8 @@ export default function CalendarPage() {
     notes?: string;
     contactPhone?: string;
     helicopterRegistration: string;
+    pilotName?: string | null;
+    declaredPeople?: number | null;
     passengers: any[]; // PassengerFormData[]
   }) => {
     if (editingBooking) {
@@ -228,10 +240,16 @@ export default function CalendarPage() {
         notes: data.notes,
         contactPhone: data.contactPhone,
         helicopterRegistration: data.helicopterRegistration,
+        pilotName: data.pilotName,
+        declaredPeople: data.declaredPeople,
         passengers: data.passengers,
       });
     } else {
-      createBooking.mutate(data);
+      createBooking.mutate({
+        ...data,
+        pilotName: data.pilotName ?? undefined,
+        declaredPeople: data.declaredPeople ?? undefined,
+      });
     }
   };
 
@@ -317,6 +335,8 @@ export default function CalendarPage() {
               currentUserId={currentUserId}
               isAdmin={isAdmin}
               isSecurity={isSecurity}
+              startHour={startHour}
+              endHour={endHour}
               onSlotClick={handleSlotClick}
               onBookingClick={handleBookingClick}
             />
@@ -328,6 +348,8 @@ export default function CalendarPage() {
               currentUserId={currentUserId}
               isAdmin={isAdmin}
               isSecurity={isSecurity}
+              startHour={startHour}
+              endHour={endHour}
               onSlotClick={isSecurity ? undefined : handleSlotClick}
               onBookingClick={handleBookingClick}
             />

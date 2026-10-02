@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, ListOrdered, User, LayoutDashboard } from "lucide-react";
+import { Calendar, ListOrdered, User, LayoutDashboard, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/constants";
 import { useTranslations } from "@/hooks/use-translations";
@@ -20,7 +20,10 @@ export function MobileNav({ isAdmin, isSecurity }: MobileNavProps) {
     { label: t("navigation.calendar"), href: ROUTES.calendar, icon: Calendar },
     { label: t("navigation.bookings"), href: ROUTES.myBookings, icon: ListOrdered },
     ...(isAdmin || isSecurity
-      ? [{ label: t("navigation.admin"), href: ROUTES.adminDashboard, icon: LayoutDashboard }]
+      ? [
+          { label: t("navigation.checkIn"), href: ROUTES.adminCheckIn, icon: ScanLine },
+          { label: t("navigation.admin"), href: ROUTES.adminDashboard, icon: LayoutDashboard },
+        ]
       : []),
     { label: t("navigation.profile"), href: "/profile", icon: User },
   ];

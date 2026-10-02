@@ -93,6 +93,7 @@
   },
 
   "navigation": {
+    "checkIn": "Access Control",
     "bookings": "Bookings",
     "calendar": "Calendar",
     "myBookings": "My Bookings",
@@ -157,6 +158,11 @@
   },
 
   "bookings": {
+    "pilotNameOptional": "Pilot in command (optional)",
+    "pilotNamePlaceholder": "Pilot full name",
+    "declaredPeopleOptional": "Number of people (optional)",
+    "declaredPeoplePlaceholder": "e.g., 4",
+    "declaredPeopleHint": "Passengers, lounge guests and crew. If left empty, the number of registered passengers applies.",
     "bookHelipad": "Book Helipad",
     "selectTimeSlot": "Select your preferred time slot and provide booking details.",
     "date": "Date",
@@ -180,10 +186,11 @@
     "updateBooking": "Update Booking",
     "updateTimeSlot": "Modify the booking details below.",
     "bookingEndsAt": "Booking ends at",
-    "fixedDuration": "10 minutes",
+    "fixedDuration": "{minutes} minutes",
     "fixedDurationBooking": "booking",
     "endsAt": "Ends:",
-    "bufferInfo": "+ 5 minute buffer for departure (next slot available 15 min after start)",
+    "bufferInfo": "Landing-to-takeoff slot (Regulation Art. 19.1) + 5 minute buffer before the next slot",
+    "ruleWarningNotice": "This booking is an exception to the Regulation ({warnings}). It will still be recorded and visible to the operator.",
     "dateTime": "Date & Time",
     "flightDetails": "Flight Details",
     "durations": {
@@ -225,6 +232,8 @@
   },
 
   "bookingDetails": {
+    "pilotName": "Pilot in command",
+    "declaredPeople": "Declared people",
     "title": "Booking Details",
     "date": "Date",
     "time": "Time",
@@ -343,6 +352,7 @@
     "noMembersFound": "No members found",
     "noVipsFound": "No VIPs found",
     "tableHeaders": {
+      "code": "Code",
       "name": "Name",
       "identification": "Identification",
       "validity": "Validity",
@@ -367,10 +377,16 @@
     "membershipStartDate": "Validity Start",
     "membershipEndDate": "Validity End",
     "notes": "Notes (optional)",
+    "memberCode": "Member Code",
+    "memberCodePlaceholder": "E.g. 8814",
     "aircraftSection": "Usual aircraft (informational, does not restrict which one they can fly)",
     "aircraftPlaceholder": "Registration, e.g. N123AB",
     "addAircraft": "Add",
     "noAircraft": "No aircraft declared",
+    "groupSection": "Family/business group",
+    "noSubMembers": "No sub-members added",
+    "addSubMember": "Add sub-member",
+    "deactivateSubMember": "Deactivate",
     "createMember": "Create Member",
     "updateMember": "Update Member"
   },
@@ -390,8 +406,10 @@
   },
 
   "adminAlerts": {
-    "title": "Misuse Alerts",
-    "description": "Aircraft that landed 2 or more times with no member aboard in the last 6 months",
+    "title": "Alerts",
+    "description": "Helipad misuse and membership usage quota overages",
+    "tabMisuse": "Misuse",
+    "tabUsageOverage": "Usage Overage",
     "noAlerts": "No open alerts",
     "tableHeaders": {
       "registration": "Registration",
@@ -403,11 +421,17 @@
     "open": "Open",
     "acknowledged": "Acknowledged",
     "acknowledge": "Mark as reviewed",
-    "acknowledgedBy": "Reviewed by"
+    "acknowledgedBy": "Reviewed by",
+    "usageOverage": {
+      "tableHeaders": {
+        "member": "Member",
+        "count": "Uses this period",
+        "period": "Membership period"
+      }
+    }
   },
 
   "noTitularBadge": "No member aboard",
-
   "adminBookings": {
     "title": "All Bookings",
     "description": "View and manage all helipad bookings",
@@ -490,8 +514,15 @@
       "openingTime": "Opening Time",
       "closingTime": "Closing Time",
       "timeSlotDuration": "Time Slot Duration",
-      "maxBookingDuration": "Max Booking Duration",
-      "minAdvanceNotice": "Min. Advance Notice"
+      "maxBookingDuration": "Slot Duration (landing to takeoff)",
+      "minAdvanceNotice": "Min. Advance Notice",
+      "cancellationCutoff": "Penalty-free Cancellation (notice)"
+    },
+    "membershipUsage": {
+      "title": "Membership Usage",
+      "description": "Annual usage limit per membership and the overage charge amount",
+      "annualUsageLimit": "Annual Usage Limit",
+      "overageAmount": "Overage Charge Amount (USD)"
     },
     "blackoutDates": {
       "title": "Blackout Dates",
@@ -531,8 +562,10 @@
     },
     "durations": {
       "none": "None",
+      "10min": "10 minutes",
       "15min": "15 minutes",
       "30min": "30 minutes",
+      "45min": "45 minutes",
       "1hour": "1 hour",
       "2hours": "2 hours",
       "3hours": "3 hours",
@@ -605,6 +638,58 @@
     "newBooking": "New booking",
     "someoneBooked": "Someone just made a booking. Calendar updated.",
     "bookingCancelledByOther": "A booking was cancelled. Calendar updated."
+  },
+
+  "ruleWarnings": {
+    "outside_hours": "Outside operating hours",
+    "short_notice": "Short notice",
+    "blackout_date": "Blackout date",
+    "long_duration": "Extended slot",
+    "late_cancellation": "Late cancellation"
+  },
+
+  "checkIn": {
+    "title": "Access Verification",
+    "listTitle": "Access Control",
+    "refresh": "Refresh",
+    "backToList": "Today's list",
+    "scanHint": "Scan the member's QR with the phone camera to open their booking. If the QR is unavailable, find the booking here and register it manually.",
+    "searchPlaceholder": "Search by passenger, member, pilot or registration",
+    "noBookings": "No confirmed bookings for today.",
+    "entered": "entered",
+    "aircraft": "Aircraft",
+    "pilot": "Pilot",
+    "bookedBy": "Booked by",
+    "notProvided": "Not provided",
+    "passengers": "Registered passengers ({count})",
+    "declaredPeople": "{count} people declared",
+    "verifyIdentity": "The QR does not prove identity: check that each person is on the list and that the member is present.",
+    "peopleEntering": "People entering",
+    "register": "Register entry",
+    "registerException": "Register as exception",
+    "exceptionNotice": "The QR is not valid right now. You can register the entry as an exception with a reason.",
+    "exceptionExceeds": "Exceeds the remaining people ({remaining}). It will be recorded as an exception; add a reason.",
+    "notePlaceholder": "Reason (required for exceptions)",
+    "registered": "Entry registered",
+    "registerFailed": "Could not register the entry",
+    "log": "Entry log",
+    "logPeople": "{count} person(s)",
+    "manual": "manual verification",
+    "exception": "exception",
+    "unknownCodeTitle": "Invalid code",
+    "unknownCodeDescription": "This QR does not match any booking. Look for the booking in today's list.",
+    "staffOnlyTitle": "Security staff only",
+    "staffOnlyDescription": "Show this code to the helipad security staff.",
+    "myQrTitle": "Access code",
+    "myQrInstructions": "Show this QR on arrival. It covers everyone registered on the booking.",
+    "states": {
+      "valid": "Valid QR",
+      "not_yet": "Not valid yet",
+      "expired": "Slot expired",
+      "exhausted": "All people entered",
+      "cancelled": "Booking cancelled",
+      "pending": "Booking not confirmed"
+    }
   },
 
   "errors": {
@@ -691,6 +776,8 @@
   },
 
   "emails": {
+    "accessQrTitle": "Your access code",
+    "accessQrInstructions": "Show this QR code to security staff on arrival. It is valid only for this booking and covers everyone registered. Do not share it outside your group.",
     "bookingConfirmed": "Booking Confirmed!",
     "bookingConfirmedGreeting": "Hi {{userName}}, your helipad booking has been confirmed.",
     "date": "Date",

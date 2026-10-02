@@ -157,6 +157,8 @@ export default function MyBookingsPage() {
     notes?: string;
     contactPhone?: string;
     helicopterRegistration: string;
+    pilotName?: string | null;
+    declaredPeople?: number | null;
     passengers: any[]; // PassengerFormData[]
   }) => {
     if (editingBooking) {
@@ -168,10 +170,16 @@ export default function MyBookingsPage() {
         notes: data.notes,
         contactPhone: data.contactPhone,
         helicopterRegistration: data.helicopterRegistration,
+        pilotName: data.pilotName,
+        declaredPeople: data.declaredPeople,
         passengers: data.passengers,
       });
     } else {
-      createBooking.mutate(data);
+      createBooking.mutate({
+        ...data,
+        pilotName: data.pilotName ?? undefined,
+        declaredPeople: data.declaredPeople ?? undefined,
+      });
     }
   };
 

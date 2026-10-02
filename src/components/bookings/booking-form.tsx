@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, addMinutes } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import { Loader2, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Clock, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +29,23 @@ import {
 } from "@/components/ui/dialog";
 import { generateTimeSlots } from "@/hooks/use-calendar";
 import { useTranslations } from "@/hooks/use-translations";
+import { trpc } from "@/lib/trpc";
 import { PassengerManagement, type PassengerFormData } from "@/components/bookings/passenger-management";
 
-const START_HOUR = 6;
-const END_HOUR = 22;
 const SLOT_INTERVAL = 15;
-const FIXED_DURATION = 10;
+// Rango seleccionable. Es mas amplio que el horario del Reglamento a proposito: las reservas
+// fuera de horario se permiten y quedan marcadas como excepcion, no se bloquean.
+const SELECTABLE_START_HOUR = 6;
+const SELECTABLE_END_HOUR = 22;
+// Fallbacks mientras cargan los settings (Reglamento Art. 5.1, 6.1 y 19.1)
+const DEFAULT_HOURS = { start: "08:00", end: "18:00" };
+const DEFAULT_DURATION = 30;
+const DEFAULT_NOTICE = 30;
+
+function hhmmToMinutes(value: string) {
+  const [h, m] = value.split(":").map(Number);
+  return h * 60 + m;
+}
 
 const bookingFormSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -43,6 +54,12 @@ const bookingFormSchema = z.object({
   notes: z.string().max(1000).optional(),
   contactPhone: z.string().max(20).optional(),
   helicopterRegistration: z.string().min(1, "Helicopter registration is required").max(50),
+  pilotName: z.string().max(255).optional(),
+  // Kept as string from the input; parsed on submit. Empty = not declared.
+  declaredPeople: z
+    .string()
+    .optional()
+    .refine((v) => !v || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 99), "1-99"),
 });
 
 type BookingFormData = z.infer<typeof bookingFormSchema>;
@@ -59,30 +76,35 @@ function getSlotValue(hour: number, minute: number) {
   return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 }
 
-function getNextAvailableSlot(date: Date, initialHour?: number, initialMinute?: number) {
+// Sugiere el primer horario que cumple el Reglamento; si hoy ya no queda ninguno, el proximo
+// horario futuro (quedara marcado como excepcion, pero se puede reservar).
+function getNextAvailableSlot(
+  date: Date,
+  openMinutes: number,
+  lastInHoursMinutes: number,
+  noticeMinutes: number,
+  initialHour?: number,
+  initialMinute?: number
+) {
   if (initialHour !== undefined && initialMinute !== undefined) {
     return getSlotValue(initialHour, initialMinute);
   }
 
   if (!isSameLocalDate(date, new Date())) {
-    return getSlotValue(9, 0);
+    return getSlotValue(Math.floor(openMinutes / 60), openMinutes % 60);
   }
 
   const now = new Date();
-  const roundedMinutes = Math.ceil(now.getMinutes() / SLOT_INTERVAL) * SLOT_INTERVAL;
-  const nextSlot = new Date(now);
-  nextSlot.setSeconds(0, 0);
-  nextSlot.setMinutes(roundedMinutes);
-
-  if (nextSlot.getHours() < START_HOUR) {
-    return getSlotValue(START_HOUR, 0);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  // Next slot strictly after the given minute
+  const nextSlotAfter = (m: number) => Math.floor(m / SLOT_INTERVAL) * SLOT_INTERVAL + SLOT_INTERVAL;
+  let slot = Math.max(nextSlotAfter(nowMinutes + noticeMinutes - 1), openMinutes);
+  if (slot > lastInHoursMinutes) {
+    slot = nextSlotAfter(nowMinutes);
   }
+  slot = Math.min(slot, SELECTABLE_END_HOUR * 60 - SLOT_INTERVAL);
 
-  if (nextSlot.getHours() >= END_HOUR) {
-    return getSlotValue(END_HOUR - 1, 45);
-  }
-
-  return getSlotValue(nextSlot.getHours(), nextSlot.getMinutes());
+  return getSlotValue(Math.floor(slot / 60), slot % 60);
 }
 
 interface EditingBooking {
@@ -93,6 +115,8 @@ interface EditingBooking {
   notes?: string | null;
   contactPhone?: string | null;
   helicopterRegistration?: string | null;
+  pilotName?: string | null;
+  declaredPeople?: number | null;
 }
 
 interface BookingFormProps {
@@ -105,6 +129,8 @@ interface BookingFormProps {
     notes?: string;
     contactPhone?: string;
     helicopterRegistration: string;
+    pilotName?: string | null;
+    declaredPeople?: number | null;
     passengers: PassengerFormData[];
   }) => void;
   isLoading?: boolean;
@@ -128,13 +154,30 @@ export function BookingForm({
 }: BookingFormProps) {
   const { t, locale } = useTranslations();
   const dateLocale = locale === "es" ? es : enUS;
+  const { data: settings } = trpc.settings.getAll.useQuery(undefined, { enabled: open });
+  const operationalHours = settings?.operationalHours ?? DEFAULT_HOURS;
+  const duration = settings?.maxBookingDuration ?? DEFAULT_DURATION;
+  const noticeMinutes = settings?.minBookingNotice ?? DEFAULT_NOTICE;
+  const blackoutDates = useMemo(() => settings?.blackoutDates ?? [], [settings?.blackoutDates]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate || new Date());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [passengers, setPassengers] = useState<PassengerFormData[]>(initialPassengers);
   const [passengerError, setPassengerError] = useState<string>("");
   
-  // Generate 15-minute time slots (10 min booking + 5 min buffer)
-  const timeSlots = useMemo(() => generateTimeSlots(START_HOUR, END_HOUR, SLOT_INTERVAL), []);
+  // 15-minute start times. Slots outside operating hours stay selectable but are labelled.
+  const openMinutes = hhmmToMinutes(operationalHours.start);
+  const closeMinutes = hhmmToMinutes(operationalHours.end);
+  const lastInHoursMinutes = closeMinutes - duration;
+  const timeSlots = useMemo(
+    () =>
+      generateTimeSlots(
+        Math.min(SELECTABLE_START_HOUR, Math.floor(openMinutes / 60)),
+        Math.max(SELECTABLE_END_HOUR, Math.ceil(closeMinutes / 60)),
+        SLOT_INTERVAL
+      ),
+    [openMinutes, closeMinutes]
+  );
+  const isOutsideHours = (minutes: number) => minutes < openMinutes || minutes > lastInHoursMinutes;
 
   const {
     register,
@@ -162,6 +205,8 @@ export function BookingForm({
           notes: editingBooking.notes || "",
           contactPhone: editingBooking.contactPhone || "",
           helicopterRegistration: editingBooking.helicopterRegistration || "",
+          pilotName: editingBooking.pilotName || "",
+          declaredPeople: editingBooking.declaredPeople ? String(editingBooking.declaredPeople) : "",
         });
         setPassengers(initialPassengers.length > 0 ? initialPassengers : []);
       } else {
@@ -171,11 +216,20 @@ export function BookingForm({
 
         reset({
           date: format(date, "yyyy-MM-dd"),
-          startTime: getNextAvailableSlot(date, initialHour, initialMinute),
+          startTime: getNextAvailableSlot(
+            date,
+            openMinutes,
+            lastInHoursMinutes,
+            noticeMinutes,
+            initialHour,
+            initialMinute
+          ),
           purpose: "",
           notes: "",
           contactPhone: "",
           helicopterRegistration: "",
+          pilotName: "",
+          declaredPeople: "",
         });
         setPassengers([]);
       }
@@ -190,17 +244,34 @@ export function BookingForm({
   const watchedDate = watch("date");
   const watchedStartTime = watch("startTime");
 
-  // Calculate end time (fixed 10 minutes)
+  // Calculate end time (fixed slot duration)
   const endTime = useMemo(() => {
     if (!watchedDate || !watchedStartTime) return null;
 
     const [hours, minutes] = watchedStartTime.split(":").map(Number);
     const [year, month, day] = watchedDate.split("-").map(Number);
     const startDate = new Date(year, month - 1, day, hours, minutes);
-    const endDate = addMinutes(startDate, FIXED_DURATION);
+    const endDate = addMinutes(startDate, duration);
 
     return format(endDate, "h:mm a");
-  }, [watchedDate, watchedStartTime]);
+  }, [watchedDate, watchedStartTime, duration]);
+
+  // Mirrors getRuleWarnings() on the server: informative only, the booking is never blocked
+  const ruleWarnings = useMemo(() => {
+    if (!watchedDate || !watchedStartTime) return [];
+
+    const [hours, minutes] = watchedStartTime.split(":").map(Number);
+    const [year, month, day] = watchedDate.split("-").map(Number);
+    const startDate = new Date(year, month - 1, day, hours, minutes);
+    const startMinutes = hours * 60 + minutes;
+    const warnings: string[] = [];
+
+    if (blackoutDates.includes(watchedDate)) warnings.push("blackout_date");
+    if (startMinutes < openMinutes || startMinutes > lastInHoursMinutes) warnings.push("outside_hours");
+    if (!editingBooking && startDate < addMinutes(new Date(), noticeMinutes)) warnings.push("short_notice");
+
+    return warnings;
+  }, [watchedDate, watchedStartTime, blackoutDates, openMinutes, lastInHoursMinutes, noticeMinutes, editingBooking]);
 
   const handleFormSubmit = (data: BookingFormData) => {
     // Validate passengers before submitting
@@ -214,12 +285,13 @@ export function BookingForm({
     // Parse date string as local date (not UTC) to avoid timezone issues
     const [year, month, day] = data.date.split("-").map(Number);
     const startDate = new Date(year, month - 1, day, hours, minutes);
-    const endDate = addMinutes(startDate, FIXED_DURATION);
+    const endDate = addMinutes(startDate, duration);
 
     if (!editingBooking && startDate <= new Date()) {
       setPassengerError("No puedes reservar una hora que ya paso.");
       return;
     }
+
 
     onSubmit({
       startTime: startDate.toISOString(),
@@ -228,6 +300,9 @@ export function BookingForm({
       notes: data.notes || undefined,
       contactPhone: data.contactPhone || undefined,
       helicopterRegistration: data.helicopterRegistration,
+      // On edit, null clears a previously stored value; on create, undefined just omits it
+      pilotName: data.pilotName?.trim() || (editingBooking ? null : undefined),
+      declaredPeople: data.declaredPeople ? Number(data.declaredPeople) : editingBooking ? null : undefined,
       passengers,
     });
   };
@@ -317,6 +392,7 @@ export function BookingForm({
                           const slotDateTime = new Date(slotDate);
                           slotDateTime.setHours(slot.hour, slot.minute, 0, 0);
                           const isPastSlot = !editingBooking && slotDateTime <= new Date();
+                          const outside = isOutsideHours(slot.hour * 60 + slot.minute);
 
                           return (
                             <option
@@ -325,7 +401,11 @@ export function BookingForm({
                               disabled={isPastSlot}
                             >
                               {slot.label}
-                              {isPastSlot ? " - no disponible" : ""}
+                              {isPastSlot
+                                ? " - no disponible"
+                                : outside
+                                ? ` - ${t("ruleWarnings.outside_hours").toLowerCase()}`
+                                : ""}
                             </option>
                           );
                         })()
@@ -345,7 +425,7 @@ export function BookingForm({
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-brand-600" />
                       <span className="text-brand-700">
-                        <strong>{t("bookings.fixedDuration")}</strong> {t("bookings.fixedDurationBooking")}
+                        <strong>{t("bookings.fixedDuration", { minutes: duration })}</strong> {t("bookings.fixedDurationBooking")}
                       </span>
                     </div>
                     <span className="text-brand-700">
@@ -355,6 +435,17 @@ export function BookingForm({
                   <p className="text-xs text-brand-600">
                     {t("bookings.bufferInfo")}
                   </p>
+                </div>
+              )}
+
+              {ruleWarnings.length > 0 && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span>
+                    {t("bookings.ruleWarningNotice", {
+                      warnings: ruleWarnings.map((w) => t(`ruleWarnings.${w}`).toLowerCase()).join(", "),
+                    })}
+                  </span>
                 </div>
               )}
             </div>
@@ -394,6 +485,33 @@ export function BookingForm({
                   {errors.helicopterRegistration && (
                     <p className="text-xs text-red-600">{errors.helicopterRegistration.message}</p>
                   )}
+                </div>
+
+                {/* Pilot in command (Reglamento Art. 6.2 ii) */}
+                <div className="space-y-2">
+                  <Label htmlFor="pilotName">{t("bookings.pilotNameOptional")}</Label>
+                  <Input
+                    id="pilotName"
+                    type="text"
+                    {...register("pilotName")}
+                    placeholder={t("bookings.pilotNamePlaceholder")}
+                  />
+                </div>
+
+                {/* Declared number of people (Reglamento Art. 6.2 iv) */}
+                <div className="space-y-2">
+                  <Label htmlFor="declaredPeople">{t("bookings.declaredPeopleOptional")}</Label>
+                  <Input
+                    id="declaredPeople"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={99}
+                    {...register("declaredPeople")}
+                    error={!!errors.declaredPeople}
+                    placeholder={t("bookings.declaredPeoplePlaceholder")}
+                  />
+                  <p className="text-xs text-zinc-500">{t("bookings.declaredPeopleHint")}</p>
                 </div>
 
                 {/* Contact phone */}
