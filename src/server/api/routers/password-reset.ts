@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { users, passwordResetTokens } from "@/server/db/schema";
 import { sendEmail } from "@/server/services/email";
+import { getAppUrl } from "@/server/app-url";
 
 // Generate a secure random token
 function generateToken(): string {
@@ -62,7 +63,7 @@ export const passwordResetRouter = createTRPCRouter({
       });
 
       // Send reset email
-      const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+      const resetUrl = `${getAppUrl()}/reset-password?token=${token}`;
       
       try {
         await sendEmail({

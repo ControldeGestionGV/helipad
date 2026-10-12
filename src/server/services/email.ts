@@ -7,11 +7,13 @@ import { defaultSettings } from "@/server/api/routers/settings";
 import { GraphMailer } from "@/lib/email/graphMailer";
 import type { IMailer } from "@/lib/email/types";
 import { ensureAccessCode } from "@/server/services/access-control";
+import { getAppUrl } from "@/server/app-url";
 import enTranslations from "@/lib/translations/en.json";
 import esTranslations from "@/lib/translations/es.json";
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Helipad Booking";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+// Resolved per call (not at module load) so it always reflects the deployment environment
+const appUrl = () => getAppUrl();
 
 // Translation helper
 const translations: Record<string, any> = {
@@ -344,7 +346,7 @@ function baseTemplate(content: string): string {
           <tr>
             <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e4e4e7;">
               <p style="margin: 0; color: #71717a; font-size: 14px;">
-                ${APP_NAME} • <a href="${APP_URL}" style="color: #3f3f46; text-decoration: none;">Visit Dashboard</a>
+                ${APP_NAME} • <a href="${appUrl()}" style="color: #3f3f46; text-decoration: none;">Visit Dashboard</a>
               </p>
             </td>
           </tr>
@@ -517,7 +519,7 @@ export async function sendMisuseAlertEmail(data: MisuseAlertData): Promise<boole
       Esta es una notificacion informativa; no bloquea reservas futuras de esta aeronave.
     </p>
 
-    <a href="${APP_URL}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       Ver alertas
     </a>
   `;
@@ -589,7 +591,7 @@ export async function sendUsageOverageEmail(data: UsageOverageAlertData): Promis
       se factura por separado.
     </p>
 
-    <a href="${APP_URL}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       Ver alertas
     </a>
   `;
@@ -621,7 +623,7 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<b
     ? `
     <div style="text-align: center; border: 1px solid #e4e4e7; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
       <p style="margin: 0 0 12px; color: #18181b; font-size: 16px; font-weight: 600;">${t("emails.accessQrTitle", locale)}</p>
-      <img src="${APP_URL}/api/bookings/qr/${accessCode}" width="200" height="200" alt="QR" style="display: block; margin: 0 auto 12px;" />
+      <img src="${appUrl()}/api/bookings/qr/${accessCode}" width="200" height="200" alt="QR" style="display: block; margin: 0 auto 12px;" />
       <p style="margin: 0; color: #71717a; font-size: 13px; line-height: 1.5;">${t("emails.accessQrInstructions", locale)}</p>
     </div>`
     : "";
@@ -661,7 +663,7 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<b
       ${t("emails.needChanges", locale)}
     </p>
     
-    <a href="${APP_URL}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.viewMyBookings", locale)}
     </a>
   `;
@@ -706,7 +708,7 @@ export async function sendBookingCancellation(data: BookingEmailData): Promise<b
       ${t("emails.timeslotAvailable", locale)}
     </p>
     
-    <a href="${APP_URL}/bookings/calendar" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/bookings/calendar" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.bookNewSlot", locale)}
     </a>
   `;
@@ -753,7 +755,7 @@ export async function sendBookingReminder(data: BookingEmailData): Promise<boole
       </table>
     </div>
     
-    <a href="${APP_URL}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.viewBookingDetails", locale)}
     </a>
   `;

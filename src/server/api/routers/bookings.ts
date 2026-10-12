@@ -16,6 +16,7 @@ import { checkMembershipForPassengers } from "@/server/services/membership";
 import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
 import { checkAndTriggerUsageOverage } from "@/server/services/usage-alerts";
 import { getBookingRules, getRuleWarnings, isLateCancellation } from "@/server/services/booking-rules";
+import { getAppUrl } from "@/server/app-url";
 import { historicalBookingInputSchema, type HistoricalBookingInput } from "@/lib/validations";
 import type { DbClient } from "@/server/db";
 
@@ -441,7 +442,7 @@ export const bookingsRouter = createTRPCRouter({
         const recipients = await getApprovalRecipients();
 
         if (recipients.length > 0) {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const appUrl = getAppUrl();
 
           const approveToken = await createApprovalToken({
             bookingId: newBooking.id,

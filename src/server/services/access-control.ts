@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { db as defaultDb, type DbClient } from "@/server/db";
 import { bookings } from "@/server/db/schema";
+import { getAppUrl } from "@/server/app-url";
 
 // Reglamento Art. 6.5: el QR vale solo para la fecha y franja confirmadas. Se abre un margen antes
 // del inicio para el lounge y la llegada de pasajeros, y otro despues del fin para el desembarque.
@@ -17,8 +18,7 @@ export type AccessState =
   | "pending"; // not confirmed yet: no credential
 
 export function checkInUrl(accessCode: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return `${appUrl}/check-in/${accessCode}`;
+  return `${getAppUrl()}/check-in/${accessCode}`;
 }
 
 /**
