@@ -660,6 +660,7 @@
   },
 
   "checkIn": {
+    "memberBadge": "Miembro",
     "title": "Verificación de Acceso",
     "listTitle": "Control de Acceso",
     "refresh": "Actualizar",
@@ -701,6 +702,18 @@
       "cancelled": "Reserva cancelada",
       "pending": "Reserva no confirmada"
     }
+  },
+
+  "memberPhoto": {
+    "title": "Foto de identificación",
+    "hint": "Foto 2x2 de rostro completo, reciente y a color (Reglamento Art. 13.5). Solo se usa para verificar la identidad en el acceso; no se usa para publicidad ni reconocimiento facial.",
+    "upload": "Subir foto",
+    "replace": "Cambiar foto",
+    "remove": "Quitar",
+    "alt": "Foto del miembro",
+    "saved": "Foto guardada",
+    "saveFailed": "No se pudo guardar la foto",
+    "notAnImage": "El archivo no es una imagen válida"
   },
 
   "errors": {

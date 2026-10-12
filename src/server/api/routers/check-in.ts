@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { normalizeIdentification } from "@/server/services/membership";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure, securityOrAdminProcedure } from "../trpc";
-import { bookingCheckIns, bookings } from "@/server/db/schema";
+import { bookingCheckIns, bookings, members } from "@/server/db/schema";
 import type { DbClient } from "@/server/db";
 import {
   allowedPeople,
@@ -32,7 +33,7 @@ async function loadCheckInDetail(db: DbClient, where: { code: string } | { booki
     },
     with: {
       user: { columns: { firstName: true, lastName: true } },
-      passengers: { columns: { id: true, name: true } },
+      passengers: { columns: { id: true, name: true, identificationNumber: true } },
       checkIns: {
         orderBy: (c, { asc }) => [asc(c.createdAt)],
         with: { checkedInByUser: { columns: { firstName: true, lastName: true } } },
@@ -42,12 +43,30 @@ async function loadCheckInDetail(db: DbClient, where: { code: string } | { booki
 
   if (!booking) return null;
 
+  // Passengers who are members: security sees their identification photo (Art. 13.5).
+  // The ID number is only used for this match and never leaves the server.
+  const normalized = booking.passengers.map((p) => normalizeIdentification(p.identificationNumber));
+  const matchedMembers =
+    normalized.length > 0
+      ? await db.query.members.findMany({
+          where: inArray(members.identificationNumberNormalized, normalized),
+          columns: { id: true, identificationNumberNormalized: true },
+        })
+      : [];
+  const memberIdByNormalized = new Map(matchedMembers.map((m) => [m.identificationNumberNormalized, m.id]));
+  const passengers = booking.passengers.map((p, i) => ({
+    id: p.id,
+    name: p.name,
+    memberId: memberIdByNormalized.get(normalized[i]) ?? null,
+  }));
+
   const allowed = allowedPeople(booking.declaredPeople, booking.passengers.length);
   const entered = booking.checkIns.reduce((sum, c) => sum + c.people, 0);
   const state = getAccessState(booking, allowed, entered);
 
   return {
     ...booking,
+    passengers,
     allowed,
     entered,
     remaining: Math.max(allowed - entered, 0),

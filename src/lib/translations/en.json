@@ -659,6 +659,7 @@
   },
 
   "checkIn": {
+    "memberBadge": "Member",
     "title": "Access Verification",
     "listTitle": "Access Control",
     "refresh": "Refresh",
@@ -700,6 +701,18 @@
       "cancelled": "Booking cancelled",
       "pending": "Booking not confirmed"
     }
+  },
+
+  "memberPhoto": {
+    "title": "Identification photo",
+    "hint": "Recent full-face 2x2 color photo (Regulation Art. 13.5). Used only to verify identity at access; never for advertising or facial recognition.",
+    "upload": "Upload photo",
+    "replace": "Change photo",
+    "remove": "Remove",
+    "alt": "Member photo",
+    "saved": "Photo saved",
+    "saveFailed": "Could not save the photo",
+    "notAnImage": "The file is not a valid image"
   },
 
   "errors": {

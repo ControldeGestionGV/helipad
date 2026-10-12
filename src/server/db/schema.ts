@@ -100,6 +100,17 @@ export const members = sqliteTable("members", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
+// Member identification photo (Reglamento Art. 13.5): 2x2 face photo, used only to verify the
+// member's identity at the access point. Not for advertising nor automated facial recognition.
+// Separate table so member listings never load image data. One row per member.
+export const memberPhotos = sqliteTable("member_photos", {
+  memberId: text("member_id").primaryKey().references(() => members.id, { onDelete: "cascade" }),
+  // JPEG data URL, resized client-side (max 480px, ~50KB)
+  dataUrl: text("data_url").notNull(),
+  uploadedBy: text("uploaded_by").references(() => users.id),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
 // Aircraft a member usually flies (informational only - does not restrict which aircraft they can use)
 export const memberAircraft = sqliteTable("member_aircraft", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -326,6 +337,7 @@ export type NewPassenger = typeof passengers.$inferInsert;
 export type Member = typeof members.$inferSelect;
 export type NewMember = typeof members.$inferInsert;
 export type MemberAircraft = typeof memberAircraft.$inferSelect;
+export type MemberPhoto = typeof memberPhotos.$inferSelect;
 export type NewMemberAircraft = typeof memberAircraft.$inferInsert;
 export type Vip = typeof vips.$inferSelect;
 export type NewVip = typeof vips.$inferInsert;

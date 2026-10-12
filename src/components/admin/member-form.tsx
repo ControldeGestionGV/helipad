@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { MemberPhoto } from "@/components/admin/member-photo";
 import {
   Dialog,
   DialogContent,
@@ -202,6 +203,14 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
 
         <form onSubmit={handleSubmit(handleFormSubmit)}>
           <DialogBody className="space-y-4">
+            {isEditing && (
+              <div className="space-y-2">
+                <Label>{t("memberPhoto.title")}</Label>
+                <MemberPhoto memberId={member!.id} size="lg" editable />
+                <p className="text-xs text-zinc-500">{t("memberPhoto.hint")}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" required>
@@ -389,6 +398,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
                           s.isActive ? "bg-zinc-50 text-zinc-700" : "bg-zinc-50 text-zinc-400 line-through"
                         }`}
                       >
+                        <MemberPhoto memberId={s.id} size="sm" editable={s.isActive} />
                         <span className="flex-1 min-w-0 truncate">
                           {s.memberCode ? `${s.memberCode} · ` : ""}
                           {s.firstName} {s.lastName}

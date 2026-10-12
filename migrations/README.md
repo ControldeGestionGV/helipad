@@ -12,6 +12,7 @@ This directory contains SQL migration files for the Turso production database.
 - `0015_add_pilot_and_declared_people.sql` - Adds optional `bookings.pilot_name` and `bookings.declared_people` (Reglamento Art. 6.2 ii and iv)
 - `0016_add_access_codes_and_check_ins.sql` - Adds `bookings.access_code` (QR credential, unique) and the `booking_check_ins` access log (Reglamento Art. 6.5 / 12.7)
 - `0017_add_member_usage_limits.sql` - Adds `members.annual_usage_limit` (family quota on the titular, optional individual cap on sub-members) and `member_usage_alerts.scope` / `usage_limit`
+- `0018_add_member_photos.sql` - Adds `member_photos` (2x2 identification photo per member, Reglamento Art. 13.5)
 
 ## 🚀 How to Apply Migrations to Turso
 

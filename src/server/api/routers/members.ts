@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, adminProcedure, securityOrAdminProcedure } from "../trpc";
-import { members, memberAircraft } from "@/server/db/schema";
+import { members, memberAircraft, memberPhotos } from "@/server/db/schema";
 import { eq, like, or, and, desc, asc, sql, isNull, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { normalizeIdentification } from "@/server/services/membership";
@@ -188,6 +188,71 @@ export const membersRouter = createTRPCRouter({
       }
 
       return getMembershipUsage(member.parentMemberId ?? member.id);
+    }),
+
+  /**
+   * Identification photo (Reglamento Art. 13.5). Null when the member has none.
+   */
+  getPhoto: securityOrAdminProcedure
+    .input(z.object({ memberId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const photo = await ctx.db.query.memberPhotos.findFirst({
+        where: eq(memberPhotos.memberId, input.memberId),
+        columns: { dataUrl: true, updatedAt: true },
+      });
+      return photo ?? null;
+    }),
+
+  /**
+   * Which of these members have a photo, without loading the images.
+   */
+  photoStatus: securityOrAdminProcedure
+    .input(z.object({ memberIds: z.array(z.string().uuid()).max(100) }))
+    .query(async ({ ctx, input }) => {
+      if (input.memberIds.length === 0) return [];
+      const rows = await ctx.db
+        .select({ memberId: memberPhotos.memberId })
+        .from(memberPhotos)
+        .where(inArray(memberPhotos.memberId, input.memberIds));
+      return rows.map((r) => r.memberId);
+    }),
+
+  setPhoto: adminProcedure
+    .input(
+      z.object({
+        memberId: z.string().uuid(),
+        // Resized client-side to ~50KB; the cap only guards against a client skipping that
+        dataUrl: z
+          .string()
+          .max(700_000)
+          .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, "Invalid image"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const member = await ctx.db.query.members.findFirst({
+        where: eq(members.id, input.memberId),
+        columns: { id: true },
+      });
+      if (!member) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+      }
+
+      await ctx.db
+        .insert(memberPhotos)
+        .values({ memberId: input.memberId, dataUrl: input.dataUrl, uploadedBy: ctx.session.user.id })
+        .onConflictDoUpdate({
+          target: memberPhotos.memberId,
+          set: { dataUrl: input.dataUrl, uploadedBy: ctx.session.user.id, updatedAt: new Date() },
+        });
+
+      return { ok: true };
+    }),
+
+  removePhoto: adminProcedure
+    .input(z.object({ memberId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.delete(memberPhotos).where(eq(memberPhotos.memberId, input.memberId));
+      return { ok: true };
     }),
 
   delete: adminProcedure

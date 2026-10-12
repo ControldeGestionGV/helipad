@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/toast";
 import { useTranslations } from "@/hooks/use-translations";
 import type { RouterOutputs } from "@/lib/trpc";
+import { MemberPhoto } from "@/components/admin/member-photo";
 
 type CheckInDetail = NonNullable<RouterOutputs["checkIn"]["getByCode"]>;
 
@@ -126,10 +127,22 @@ export function CheckInPanel({ detail, isManual = false, onRegistered }: CheckIn
             </span>
           )}
         </p>
-        <ul className="space-y-1">
+        <ul className="space-y-2">
           {detail.passengers.map((passenger) => (
-            <li key={passenger.id} className="text-sm text-zinc-900">
-              • {passenger.name}
+            <li key={passenger.id} className="flex items-center gap-3 text-sm text-zinc-900">
+              {passenger.memberId ? (
+                <>
+                  <MemberPhoto memberId={passenger.memberId} size="md" />
+                  <span>
+                    {passenger.name}
+                    <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-800">
+                      {t("checkIn.memberBadge")}
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <span>• {passenger.name}</span>
+              )}
             </li>
           ))}
         </ul>
