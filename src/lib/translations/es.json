@@ -366,6 +366,14 @@
   },
 
   "memberForm": {
+    "membershipQuota": "Cupo anual de operaciones (membresía)",
+    "quotaGlobalPlaceholder": "Global: {limit}",
+    "membershipQuotaHint": "Compartido por el titular y todo su grupo familiar/empresarial. Vacío = valor global de Configuración.",
+    "quotaUsed": "Usadas en el período",
+    "subMemberUsed": "{count} vuelos",
+    "individualCapPlaceholder": "Tope",
+    "individualCapHint": "Tope individual opcional: limita a esa persona dentro del cupo de la membresía. Vacío = sin tope propio.",
+    "newSubMemberCapPlaceholder": "Tope individual (opcional)",
     "createTitle": "Nuevo Miembro",
     "editTitle": "Editar Miembro",
     "createDescription": "Registra un nuevo titular de membresía.",
@@ -423,6 +431,8 @@
     "acknowledge": "Marcar como revisada",
     "acknowledgedBy": "Revisada por",
     "usageOverage": {
+      "scopeMembership": "Cupo de membresía",
+      "scopeIndividual": "Tope individual",
       "tableHeaders": {
         "member": "Miembro",
         "count": "Usos en el período",
@@ -521,7 +531,7 @@
     },
     "membershipUsage": {
       "title": "Uso de Membresía",
-      "description": "Límite de usos anuales por membresía y monto a cobrar por excedente",
+      "description": "Cupo anual por defecto de cada membresía (se puede ajustar por miembro o familia en su ficha) y monto por excedente",
       "annualUsageLimit": "Límite de Usos Anuales",
       "overageAmount": "Monto por Uso Excedente (USD)"
     },

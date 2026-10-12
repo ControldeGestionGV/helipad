@@ -91,6 +91,11 @@ export const members = sqliteTable("members", {
   parentMemberId: text("parent_member_id").references((): AnySQLiteColumn => members.id, {
     onDelete: "cascade",
   }),
+  // Cupo anual de Operaciones Computables (Contrato 2.4).
+  // Titular: cupo de toda la membresia (titular + sub-miembros comparten el contador).
+  //   Null = valor global de settings.membershipUsage.annualUsageLimit.
+  // Sub-miembro: tope individual opcional dentro del cupo familiar. Null = sin tope propio.
+  annualUsageLimit: integer("annual_usage_limit"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
@@ -138,6 +143,11 @@ export const memberUsageAlerts = sqliteTable("member_usage_alerts", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
   usageCount: integer("usage_count").notNull(),
+  // "membership": the titular's group quota was exceeded (memberId = titular).
+  // "individual": a sub-member exceeded their own cap (memberId = sub-member).
+  scope: text("scope", { enum: ["membership", "individual"] }).notNull().default("membership"),
+  // Quota in force when the alert was raised, so the alert still reads right if it changes later
+  usageLimit: integer("usage_limit"),
   periodStart: integer("period_start", { mode: "timestamp" }).notNull(),
   periodEnd: integer("period_end", { mode: "timestamp" }).notNull(),
   status: text("status", { enum: ["open", "acknowledged"] }).notNull().default("open"),

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Applies migrations 0012-0016 (member groups, usage alerts, Reglamento v2, QR access control)
+ * Applies migrations 0012-0017 (member groups, usage alerts, Reglamento v2, QR access control,
+ * per-member/family usage quotas)
  * to the production Turso database, safely:
  *
  *   1. Backs up every table to backups/turso-<timestamp>.json (local file, gitignored).
@@ -59,6 +60,7 @@ const MIGRATIONS = [
   { file: "0014_align_reglamento_v2.sql", applied: async () => (await columns("bookings")).includes("late_cancellation") },
   { file: "0015_add_pilot_and_declared_people.sql", applied: async () => (await columns("bookings")).includes("pilot_name") },
   { file: "0016_add_access_codes_and_check_ins.sql", applied: async () => (await columns("bookings")).includes("access_code") },
+  { file: "0017_add_member_usage_limits.sql", applied: async () => (await columns("members")).includes("annual_usage_limit") },
 ];
 
 async function main() {

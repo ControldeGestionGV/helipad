@@ -28,6 +28,7 @@ type Member = {
   notes: string | null;
   isActive: boolean;
   memberCode: string | null;
+  annualUsageLimit?: number | null;
   aircraft?: Array<{ id: string; registration: string }>;
   subMembers?: Array<{
     id: string;
@@ -36,6 +37,7 @@ type Member = {
     identificationNumber: string;
     memberCode: string | null;
     isActive: boolean;
+    annualUsageLimit?: number | null;
   }>;
 };
 

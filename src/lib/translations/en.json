@@ -366,6 +366,14 @@
   },
 
   "memberForm": {
+    "membershipQuota": "Annual operations quota (membership)",
+    "quotaGlobalPlaceholder": "Global: {limit}",
+    "membershipQuotaHint": "Shared by the titular and their whole family/business group. Empty = global value from Settings.",
+    "quotaUsed": "Used in the period",
+    "subMemberUsed": "{count} flights",
+    "individualCapPlaceholder": "Cap",
+    "individualCapHint": "Optional individual cap: limits that person within the membership quota. Empty = no own cap.",
+    "newSubMemberCapPlaceholder": "Individual cap (optional)",
     "createTitle": "New Member",
     "editTitle": "Edit Member",
     "createDescription": "Register a new membership holder.",
@@ -423,6 +431,8 @@
     "acknowledge": "Mark as reviewed",
     "acknowledgedBy": "Reviewed by",
     "usageOverage": {
+      "scopeMembership": "Membership quota",
+      "scopeIndividual": "Individual cap",
       "tableHeaders": {
         "member": "Member",
         "count": "Uses this period",
@@ -520,7 +530,7 @@
     },
     "membershipUsage": {
       "title": "Membership Usage",
-      "description": "Annual usage limit per membership and the overage charge amount",
+      "description": "Default annual quota per membership (can be adjusted per member or family on their record) and overage amount",
       "annualUsageLimit": "Annual Usage Limit",
       "overageAmount": "Overage Charge Amount (USD)"
     },

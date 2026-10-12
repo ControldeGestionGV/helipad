@@ -4,6 +4,7 @@ import { members, memberAircraft } from "@/server/db/schema";
 import { eq, like, or, and, desc, asc, sql, isNull, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { normalizeIdentification } from "@/server/services/membership";
+import { getMembershipUsage } from "@/server/services/usage-alerts";
 
 const memberInputSchema = z.object({
   firstName: z.string().min(1).max(50),
@@ -16,6 +17,9 @@ const memberInputSchema = z.object({
   // Titular's code, entered by hand from the contract (e.g. "8814"). Only titulares are
   // created through `create` - sub-members go through `addSubMember`, which derives theirs.
   memberCode: z.string().min(1, "Member code is required").max(50),
+  // Contrato 2.4. Titular: quota of the whole membership; sub-member: optional individual cap.
+  // null = titular uses the global setting / sub-member has no own cap.
+  annualUsageLimit: z.number().int().min(0).max(999).nullable().optional(),
 });
 
 export const membersRouter = createTRPCRouter({
@@ -123,6 +127,7 @@ export const membersRouter = createTRPCRouter({
         membershipEndDate: new Date(input.membershipEndDate),
         notes: input.notes,
         memberCode: input.memberCode,
+        annualUsageLimit: input.annualUsageLimit ?? null,
       })
       .returning();
 
@@ -164,6 +169,25 @@ export const membersRouter = createTRPCRouter({
         .returning();
 
       return updated;
+    }),
+
+  /**
+   * Operations used vs. quota for a whole membership (titular + sub-members), plus each
+   * person's own count. Accepts a titular or sub-member id (resolves to the titular).
+   */
+  getUsage: securityOrAdminProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const member = await ctx.db.query.members.findFirst({
+        where: eq(members.id, input.id),
+        columns: { id: true, parentMemberId: true },
+      });
+
+      if (!member) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Member not found" });
+      }
+
+      return getMembershipUsage(member.parentMemberId ?? member.id);
     }),
 
   delete: adminProcedure
@@ -226,6 +250,7 @@ export const membersRouter = createTRPCRouter({
         identificationType: z.enum(["cedula", "passport", "other"]),
         identificationNumber: z.string().min(1).max(255),
         notes: z.string().max(500).optional(),
+        annualUsageLimit: z.number().int().min(0).max(999).nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -272,6 +297,7 @@ export const membersRouter = createTRPCRouter({
           notes: input.notes,
           memberCode,
           parentMemberId: parent.id,
+          annualUsageLimit: input.annualUsageLimit ?? null,
         })
         .returning();
 

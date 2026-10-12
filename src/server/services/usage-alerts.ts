@@ -1,6 +1,7 @@
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, or } from "drizzle-orm";
 import { db } from "@/server/db";
 import { bookings, members, memberUsageAlerts, passengers, settings as settingsTable } from "@/server/db/schema";
+import type { Member } from "@/server/db/schema";
 import { defaultSettings } from "@/server/api/routers/settings";
 import { normalizeIdentification } from "@/server/services/membership";
 import { sendUsageOverageEmail } from "@/server/services/email";
@@ -22,15 +23,19 @@ async function getMembershipUsageSettings() {
 }
 
 /**
- * Counts distinct confirmed bookings where this member appears as a passenger, within
- * their current membership period. passengers.identificationNumber isn't normalized at
- * the column level, so matching happens in JS (same approach as checkMembershipForPassengers).
+ * Distinct confirmed bookings within [start, end] with at least one of these people aboard.
+ * A booking counts once even if several of them fly together: one landing + takeoff cycle is
+ * one Operacion Computable (Contrato, Clausula Primera). passengers.identificationNumber isn't
+ * normalized at the column level, so matching happens in JS (same as checkMembershipForPassengers).
  */
-async function countConfirmedUsesForMember(member: {
-  identificationNumberNormalized: string;
-  membershipStartDate: Date;
-  membershipEndDate: Date;
-}): Promise<number> {
+async function countConfirmedBookingsWithAny(
+  normalizedIds: string[],
+  periodStart: Date,
+  periodEnd: Date
+): Promise<number> {
+  if (normalizedIds.length === 0) return 0;
+  const ids = new Set(normalizedIds);
+
   const rows = await db
     .select({ identificationNumber: passengers.identificationNumber, bookingId: passengers.bookingId })
     .from(passengers)
@@ -38,26 +43,119 @@ async function countConfirmedUsesForMember(member: {
     .where(
       and(
         eq(bookings.status, "confirmed"),
-        gte(bookings.startTime, member.membershipStartDate),
-        lte(bookings.startTime, member.membershipEndDate)
+        gte(bookings.startTime, periodStart),
+        lte(bookings.startTime, periodEnd)
       )
     );
 
-  const matchingBookingIds = new Set(
-    rows
-      .filter((r) => normalizeIdentification(r.identificationNumber) === member.identificationNumberNormalized)
-      .map((r) => r.bookingId)
-  );
-
-  return matchingBookingIds.size;
+  return new Set(
+    rows.filter((r) => ids.has(normalizeIdentification(r.identificationNumber))).map((r) => r.bookingId)
+  ).size;
 }
 
 /**
- * Checks whether any member aboard this booking has exceeded their annual usage quota,
- * and opens/updates an alert if so. Self-contained and independent of the aggregate
- * membershipStatus ("member" | "vip" | "none") - it does its own matching, so it still
- * catches a member sharing a flight with a VIP (where membershipStatus would read "vip").
- * Coexists with misuse-alerts.ts (opposite case: freeloaders with no member/VIP aboard).
+ * Usage of a whole membership: the titular plus every sub-member (active or not - flights
+ * already taken still count), within the titular's membership period.
+ */
+export async function getMembershipUsage(titularId: string) {
+  const titular = await db.query.members.findFirst({ where: eq(members.id, titularId) });
+  if (!titular) return null;
+
+  const group = await db.query.members.findMany({
+    where: or(eq(members.id, titular.id), eq(members.parentMemberId, titular.id)),
+  });
+  const { annualUsageLimit: globalLimit } = await getMembershipUsageSettings();
+
+  const membershipUsed = await countConfirmedBookingsWithAny(
+    group.map((m) => m.identificationNumberNormalized),
+    titular.membershipStartDate,
+    titular.membershipEndDate
+  );
+
+  const perMember = await Promise.all(
+    group.map(async (m) => ({
+      memberId: m.id,
+      used: await countConfirmedBookingsWithAny(
+        [m.identificationNumberNormalized],
+        titular.membershipStartDate,
+        titular.membershipEndDate
+      ),
+      // Only sub-members have an individual cap; the titular's limit is the family's
+      limit: m.parentMemberId ? m.annualUsageLimit : null,
+    }))
+  );
+
+  return {
+    used: membershipUsed,
+    limit: titular.annualUsageLimit ?? globalLimit,
+    isCustomLimit: titular.annualUsageLimit !== null,
+    globalLimit,
+    perMember,
+  };
+}
+
+async function raiseOrUpdateAlert(params: {
+  member: Member;
+  scope: "membership" | "individual";
+  usageCount: number;
+  usageLimit: number;
+  periodStart: Date;
+  periodEnd: Date;
+  overageAmount: number;
+  displayName: string;
+}) {
+  const { member, scope, usageCount, usageLimit, periodStart, periodEnd } = params;
+
+  // Scoped to the current period: after a renewal periodEnd no longer matches and a fresh
+  // alert is created instead of reusing a stale one.
+  const existingOpenAlert = await db.query.memberUsageAlerts.findFirst({
+    where: and(
+      eq(memberUsageAlerts.memberId, member.id),
+      eq(memberUsageAlerts.scope, scope),
+      eq(memberUsageAlerts.status, "open"),
+      eq(memberUsageAlerts.periodEnd, periodEnd)
+    ),
+  });
+
+  if (existingOpenAlert) {
+    await db
+      .update(memberUsageAlerts)
+      .set({ usageCount, usageLimit })
+      .where(eq(memberUsageAlerts.id, existingOpenAlert.id));
+    return;
+  }
+
+  await db.insert(memberUsageAlerts).values({
+    memberId: member.id,
+    scope,
+    usageCount,
+    usageLimit,
+    periodStart,
+    periodEnd,
+    status: "open",
+  });
+
+  await sendUsageOverageEmail({
+    memberName: params.displayName,
+    memberCode: member.memberCode,
+    usageCount,
+    annualUsageLimit: usageLimit,
+    overageAmount: params.overageAmount,
+    periodStart,
+    periodEnd,
+  }).catch((err) => console.error("Failed to send usage overage email:", err));
+}
+
+/**
+ * Checks the quotas of every membership with someone aboard this booking, and opens/updates
+ * an alert when exceeded:
+ * - Membership quota (titular.annualUsageLimit, or the global setting): shared by the titular
+ *   and all sub-members. Alert on the titular, scope "membership".
+ * - Individual cap (sub-member.annualUsageLimit, optional): alert on the sub-member, scope
+ *   "individual". Their flights still count toward the family quota.
+ * Self-contained and independent of the aggregate membershipStatus ("member" | "vip" | "none"),
+ * so it still catches a member sharing a flight with a VIP. Coexists with misuse-alerts.ts
+ * (opposite case: freeloaders with no member/VIP aboard).
  */
 export async function checkAndTriggerUsageOverage(
   passengerInputs: Array<{ identificationNumber: string }>
@@ -82,49 +180,64 @@ export async function checkAndTriggerUsageOverage(
     return;
   }
 
-  const { annualUsageLimit, overageAmount } = await getMembershipUsageSettings();
+  const { annualUsageLimit: globalLimit, overageAmount } = await getMembershipUsageSettings();
 
+  // One check per membership, even if several of its members are aboard
+  const titularIds = [...new Set(matchedMembers.map((m) => m.parentMemberId ?? m.id))];
+
+  for (const titularId of titularIds) {
+    const titular = await db.query.members.findFirst({ where: eq(members.id, titularId) });
+    if (!titular) continue;
+
+    const group = await db.query.members.findMany({
+      where: or(eq(members.id, titular.id), eq(members.parentMemberId, titular.id)),
+    });
+    const groupLimit = titular.annualUsageLimit ?? globalLimit;
+    const groupUsed = await countConfirmedBookingsWithAny(
+      group.map((m) => m.identificationNumberNormalized),
+      titular.membershipStartDate,
+      titular.membershipEndDate
+    );
+
+    if (groupUsed > groupLimit) {
+      const hasSubMembers = group.length > 1;
+      await raiseOrUpdateAlert({
+        member: titular,
+        scope: "membership",
+        usageCount: groupUsed,
+        usageLimit: groupLimit,
+        periodStart: titular.membershipStartDate,
+        periodEnd: titular.membershipEndDate,
+        overageAmount,
+        displayName: `${titular.firstName} ${titular.lastName}${hasSubMembers ? " (membresía familiar)" : ""}`,
+      });
+    }
+  }
+
+  // Individual caps of the sub-members aboard
   for (const member of matchedMembers) {
-    const usageCount = await countConfirmedUsesForMember(member);
+    if (!member.parentMemberId || member.annualUsageLimit === null) continue;
 
-    if (usageCount <= annualUsageLimit) {
-      continue;
+    const titular = await db.query.members.findFirst({ where: eq(members.id, member.parentMemberId) });
+    if (!titular) continue;
+
+    const used = await countConfirmedBookingsWithAny(
+      [member.identificationNumberNormalized],
+      titular.membershipStartDate,
+      titular.membershipEndDate
+    );
+
+    if (used > member.annualUsageLimit) {
+      await raiseOrUpdateAlert({
+        member,
+        scope: "individual",
+        usageCount: used,
+        usageLimit: member.annualUsageLimit,
+        periodStart: titular.membershipStartDate,
+        periodEnd: titular.membershipEndDate,
+        overageAmount,
+        displayName: `${member.firstName} ${member.lastName} (tope individual)`,
+      });
     }
-
-    // Scoped to the member's current period: if they've since renewed, periodEnd no
-    // longer matches and a fresh alert is created instead of reusing a stale one.
-    const existingOpenAlert = await db.query.memberUsageAlerts.findFirst({
-      where: and(
-        eq(memberUsageAlerts.memberId, member.id),
-        eq(memberUsageAlerts.status, "open"),
-        eq(memberUsageAlerts.periodEnd, member.membershipEndDate)
-      ),
-    });
-
-    if (existingOpenAlert) {
-      await db
-        .update(memberUsageAlerts)
-        .set({ usageCount })
-        .where(eq(memberUsageAlerts.id, existingOpenAlert.id));
-      continue;
-    }
-
-    await db.insert(memberUsageAlerts).values({
-      memberId: member.id,
-      usageCount,
-      periodStart: member.membershipStartDate,
-      periodEnd: member.membershipEndDate,
-      status: "open",
-    });
-
-    await sendUsageOverageEmail({
-      memberName: `${member.firstName} ${member.lastName}`,
-      memberCode: member.memberCode,
-      usageCount,
-      annualUsageLimit,
-      overageAmount,
-      periodStart: member.membershipStartDate,
-      periodEnd: member.membershipEndDate,
-    }).catch((err) => console.error("Failed to send usage overage email:", err));
   }
 }

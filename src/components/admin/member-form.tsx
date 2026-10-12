@@ -31,9 +31,18 @@ const memberFormSchema = z.object({
   notes: z.string().max(500).optional(),
   isActive: z.boolean(),
   memberCode: z.string().min(1, "Member code is required").max(50),
+  // Text from the input; "" = no own quota (global setting applies)
+  annualUsageLimit: z
+    .string()
+    .optional()
+    .refine((v) => !v || (/^\d+$/.test(v) && Number(v) <= 999), "0-999"),
 });
 
 type MemberFormData = z.infer<typeof memberFormSchema>;
+
+function parseLimit(value: string | undefined): number | null {
+  return value && value.trim() !== "" ? Number(value) : null;
+}
 
 interface SubMember {
   id: string;
@@ -42,6 +51,7 @@ interface SubMember {
   identificationNumber: string;
   memberCode: string | null;
   isActive: boolean;
+  annualUsageLimit?: number | null;
 }
 
 interface Member {
@@ -55,6 +65,7 @@ interface Member {
   notes: string | null;
   isActive: boolean;
   memberCode: string | null;
+  annualUsageLimit?: number | null;
   aircraft?: Array<{ id: string; registration: string }>;
   subMembers?: SubMember[];
 }
@@ -63,7 +74,7 @@ interface MemberFormProps {
   member?: Member | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: MemberFormData & { id?: string }) => void;
+  onSubmit: (data: Omit<MemberFormData, "annualUsageLimit"> & { id?: string; annualUsageLimit: number | null }) => void;
   isLoading?: boolean;
 }
 
@@ -81,9 +92,15 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
     lastName: "",
     identificationType: "cedula" as "cedula" | "passport" | "other",
     identificationNumber: "",
+    annualUsageLimit: "",
   });
 
   const utils = trpc.useUtils();
+  // Quota usage of the whole membership (titular + group), only when editing
+  const usage = trpc.members.getUsage.useQuery({ id: member?.id ?? "" }, { enabled: open && !!member });
+  const { data: appSettings } = trpc.settings.getAll.useQuery(undefined, { enabled: open });
+  const globalLimit = appSettings?.membershipUsage.annualUsageLimit;
+  const usedByMember = new Map((usage.data?.perMember ?? []).map((u) => [u.memberId, u.used]));
   const addAircraft = trpc.members.addAircraft.useMutation({
     onSuccess: () => {
       utils.members.getById.invalidate({ id: member!.id });
@@ -96,11 +113,22 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
   const addSubMember = trpc.members.addSubMember.useMutation({
     onSuccess: () => {
       utils.members.getById.invalidate({ id: member!.id });
-      setNewSubMember({ firstName: "", lastName: "", identificationType: "cedula", identificationNumber: "" });
+      setNewSubMember({
+        firstName: "",
+        lastName: "",
+        identificationType: "cedula",
+        identificationNumber: "",
+        annualUsageLimit: "",
+      });
+      utils.members.getUsage.invalidate();
     },
   });
-  const deactivateSubMember = trpc.members.update.useMutation({
-    onSuccess: () => utils.members.getById.invalidate({ id: member!.id }),
+  // Sub-member changes (deactivate, individual cap) save immediately, outside the main form
+  const updateSubMember = trpc.members.update.useMutation({
+    onSuccess: () => {
+      utils.members.getById.invalidate({ id: member!.id });
+      utils.members.getUsage.invalidate();
+    },
   });
 
   const {
@@ -126,6 +154,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
               notes: member.notes ?? "",
               isActive: member.isActive,
               memberCode: member.memberCode ?? "",
+              annualUsageLimit: member.annualUsageLimit != null ? String(member.annualUsageLimit) : "",
             }
           : {
               firstName: "",
@@ -139,6 +168,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
               notes: "",
               isActive: true,
               memberCode: "",
+              annualUsageLimit: "",
             }
       );
     }
@@ -149,6 +179,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
       ...data,
       membershipStartDate: new Date(data.membershipStartDate).toISOString(),
       membershipEndDate: new Date(data.membershipEndDate).toISOString(),
+      annualUsageLimit: parseLimit(data.annualUsageLimit),
       ...(isEditing ? { id: member!.id } : {}),
     };
     onSubmit(submitData);
@@ -252,6 +283,39 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="annualUsageLimit">{t("memberForm.membershipQuota")}</Label>
+              <Input
+                id="annualUsageLimit"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={999}
+                placeholder={globalLimit !== undefined ? t("memberForm.quotaGlobalPlaceholder", { limit: globalLimit }) : ""}
+                {...register("annualUsageLimit")}
+                error={!!errors.annualUsageLimit}
+              />
+              <p className="text-xs text-zinc-500">{t("memberForm.membershipQuotaHint")}</p>
+              {isEditing && usage.data && (
+                <div className="space-y-1 pt-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-600">{t("memberForm.quotaUsed")}</span>
+                    <span
+                      className={`font-semibold ${usage.data.used > usage.data.limit ? "text-red-600" : "text-zinc-900"}`}
+                    >
+                      {usage.data.used} / {usage.data.limit}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${usage.data.used > usage.data.limit ? "bg-red-500" : "bg-brand-500"}`}
+                      style={{ width: `${Math.min(100, (usage.data.used / Math.max(usage.data.limit, 1)) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {isEditing && (
               <div className="space-y-2">
                 <Label htmlFor="isActive">{t("adminMembers.tableHeaders.status")}</Label>
@@ -316,31 +380,59 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
             {isEditing && (
               <div className="space-y-2 pt-2 border-t border-zinc-100">
                 <Label>{t("memberForm.groupSection")}</Label>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-2">
                   {member!.subMembers && member!.subMembers.length > 0 ? (
                     member!.subMembers.map((s) => (
-                      <span
+                      <div
                         key={s.id}
-                        className={`inline-flex items-center gap-1 text-sm px-2.5 py-1 rounded-full ${
-                          s.isActive ? "bg-zinc-100 text-zinc-700" : "bg-zinc-50 text-zinc-400 line-through"
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
+                          s.isActive ? "bg-zinc-50 text-zinc-700" : "bg-zinc-50 text-zinc-400 line-through"
                         }`}
                       >
-                        {s.memberCode ? `${s.memberCode} · ` : ""}
-                        {s.firstName} {s.lastName}
+                        <span className="flex-1 min-w-0 truncate">
+                          {s.memberCode ? `${s.memberCode} · ` : ""}
+                          {s.firstName} {s.lastName}
+                        </span>
+                        <span className="shrink-0 text-xs text-zinc-500">
+                          {t("memberForm.subMemberUsed", { count: usedByMember.get(s.id) ?? 0 })}
+                        </span>
                         {s.isActive && (
-                          <button
-                            type="button"
-                            onClick={() => deactivateSubMember.mutate({ id: s.id, isActive: false })}
-                            className="text-zinc-400 hover:text-red-600 cursor-pointer"
-                            title={t("memberForm.deactivateSubMember")}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                          <>
+                            <Input
+                              key={`${s.id}-${s.annualUsageLimit ?? ""}`}
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              max={999}
+                              className="h-8 w-24 shrink-0 text-xs"
+                              defaultValue={s.annualUsageLimit ?? ""}
+                              placeholder={t("memberForm.individualCapPlaceholder")}
+                              title={t("memberForm.individualCapHint")}
+                              onBlur={(e) => {
+                                const value = e.target.value.trim();
+                                const next = value === "" ? null : Number(value);
+                                if (next !== (s.annualUsageLimit ?? null) && (next === null || (Number.isInteger(next) && next >= 0 && next <= 999))) {
+                                  updateSubMember.mutate({ id: s.id, annualUsageLimit: next });
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateSubMember.mutate({ id: s.id, isActive: false })}
+                              className="shrink-0 text-zinc-400 hover:text-red-600 cursor-pointer"
+                              title={t("memberForm.deactivateSubMember")}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
                         )}
-                      </span>
+                      </div>
                     ))
                   ) : (
                     <p className="text-sm text-zinc-400">{t("memberForm.noSubMembers")}</p>
+                  )}
+                  {member!.subMembers && member!.subMembers.length > 0 && (
+                    <p className="text-xs text-zinc-500">{t("memberForm.individualCapHint")}</p>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -372,6 +464,16 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
                     value={newSubMember.identificationNumber}
                     onChange={(e) => setNewSubMember((s) => ({ ...s, identificationNumber: e.target.value }))}
                   />
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={999}
+                    className="col-span-2"
+                    placeholder={t("memberForm.newSubMemberCapPlaceholder")}
+                    value={newSubMember.annualUsageLimit}
+                    onChange={(e) => setNewSubMember((s) => ({ ...s, annualUsageLimit: e.target.value }))}
+                  />
                 </div>
                 <Button
                   type="button"
@@ -390,6 +492,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
                       lastName: newSubMember.lastName.trim(),
                       identificationType: newSubMember.identificationType,
                       identificationNumber: newSubMember.identificationNumber.trim(),
+                      annualUsageLimit: parseLimit(newSubMember.annualUsageLimit),
                     })
                   }
                 >

@@ -163,12 +163,20 @@ export default function AlertsPage() {
                       <>
                         {alert.member.memberCode ? `${alert.member.memberCode} · ` : ""}
                         {alert.member.firstName} {alert.member.lastName}
+                        <Badge variant="secondary">
+                          {alert.scope === "individual"
+                            ? t("adminAlerts.usageOverage.scopeIndividual")
+                            : t("adminAlerts.usageOverage.scopeMembership")}
+                        </Badge>
                       </>
                     ) : (
                       "-"
                     )}
                   </TableCell>
-                  <TableCell className="text-zinc-700 font-semibold">{alert.usageCount}</TableCell>
+                  <TableCell className="text-zinc-700 font-semibold">
+                    {alert.usageCount}
+                    {alert.usageLimit != null && <span className="font-normal text-zinc-500"> / {alert.usageLimit}</span>}
+                  </TableCell>
                   <TableCell className="text-zinc-600 text-sm">
                     {formatDate(alert.periodStart)} - {formatDate(alert.periodEnd)}
                   </TableCell>
