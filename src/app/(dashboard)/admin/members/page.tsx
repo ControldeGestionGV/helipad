@@ -29,6 +29,7 @@ type Member = {
   isActive: boolean;
   memberCode: string | null;
   annualUsageLimit?: number | null;
+  contactEmail?: string | null;
   aircraft?: Array<{ id: string; registration: string }>;
   subMembers?: Array<{
     id: string;

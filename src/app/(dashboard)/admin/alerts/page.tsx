@@ -163,6 +163,11 @@ export default function AlertsPage() {
                       <>
                         {alert.member.memberCode ? `${alert.member.memberCode} · ` : ""}
                         {alert.member.firstName} {alert.member.lastName}
+                        <Badge variant={alert.kind === "exhausted" ? "destructive" : "warning"}>
+                          {alert.kind === "exhausted"
+                            ? t("adminAlerts.usageOverage.kindExhausted")
+                            : t("adminAlerts.usageOverage.kindLowQuota")}
+                        </Badge>
                         <Badge variant="secondary">
                           {alert.scope === "individual"
                             ? t("adminAlerts.usageOverage.scopeIndividual")

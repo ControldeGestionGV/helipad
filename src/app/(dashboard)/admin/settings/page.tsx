@@ -46,7 +46,7 @@ export default function SettingsPage() {
     approverEmails: [] as string[],
   });
   const [newApproverEmail, setNewApproverEmail] = useState("");
-  const [membershipUsage, setMembershipUsage] = useState({ annualUsageLimit: 36, overageAmount: 350 });
+  const [membershipUsage, setMembershipUsage] = useState({ annualUsageLimit: 36, lowQuotaThreshold: 5 });
 
   // Update form when settings load
   useEffect(() => {
@@ -507,15 +507,16 @@ export default function SettingsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label>{t("adminSettings.membershipUsage.overageAmount")}</Label>
+            <Label>{t("adminSettings.membershipUsage.lowQuotaThreshold")}</Label>
             <Input
               type="number"
               min={0}
-              value={membershipUsage.overageAmount}
+              value={membershipUsage.lowQuotaThreshold}
               onChange={(e) =>
-                setMembershipUsage({ ...membershipUsage, overageAmount: Number(e.target.value) })
+                setMembershipUsage({ ...membershipUsage, lowQuotaThreshold: Number(e.target.value) })
               }
             />
+            <p className="text-xs text-zinc-500">{t("adminSettings.membershipUsage.lowQuotaThresholdHint")}</p>
           </div>
         </div>
 

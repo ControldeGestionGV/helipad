@@ -24,7 +24,9 @@ export const defaultSettings = {
   },
   membershipUsage: {
     annualUsageLimit: 36, // Operaciones Incluidas per membership period (Contrato 2.4)
-    overageAmount: 350, // USD per Operacion Computable beyond the limit, plus taxes (Contrato 2.4)
+    // Contrato 2.4: notice when this many operations (or fewer) remain. There is no overage
+    // billing: once the quota is used up, the membership's right to book ceases.
+    lowQuotaThreshold: 5,
   },
 };
 

@@ -366,9 +366,13 @@
   },
 
   "memberForm": {
+    "quotaRemaining": "quedan {count}",
+    "quotaExhausted": "agotado",
+    "contactEmailHint": "Opcional. Recibe el aviso cuando quedan pocas operaciones (Contrato 2.4).",
+    "contactEmail": "Correo de contacto del titular",
     "membershipQuota": "Cupo anual de operaciones (membresía)",
     "quotaGlobalPlaceholder": "Global: {limit}",
-    "membershipQuotaHint": "Compartido por el titular y todo su grupo familiar/empresarial. Vacío = valor global de Configuración.",
+    "membershipQuotaHint": "Compartido por el titular y sus usuarios autorizados. Vacío = valor global de Configuración.",
     "quotaUsed": "Usadas en el período",
     "subMemberUsed": "{count} vuelos",
     "individualCapPlaceholder": "Tope",
@@ -391,9 +395,9 @@
     "aircraftPlaceholder": "Matrícula, ej. N123AB",
     "addAircraft": "Agregar",
     "noAircraft": "Sin aeronaves declaradas",
-    "groupSection": "Grupo familiar/empresarial",
-    "noSubMembers": "Sin sub-miembros agregados",
-    "addSubMember": "Agregar sub-miembro",
+    "groupSection": "Usuarios autorizados",
+    "noSubMembers": "Sin usuarios autorizados",
+    "addSubMember": "Agregar usuario autorizado",
     "deactivateSubMember": "Desactivar",
     "createMember": "Crear Miembro",
     "updateMember": "Actualizar Miembro"
@@ -415,9 +419,9 @@
 
   "adminAlerts": {
     "title": "Alertas",
-    "description": "Uso indebido del helipuerto y excedentes de cupo de membresía",
+    "description": "Uso indebido del helipuerto y cupos de membresía (pocas operaciones o agotado)",
     "tabMisuse": "Uso Indebido",
-    "tabUsageOverage": "Excedente de Uso",
+    "tabUsageOverage": "Cupo de Membresía",
     "noAlerts": "No hay alertas abiertas",
     "tableHeaders": {
       "registration": "Matrícula",
@@ -431,6 +435,8 @@
     "acknowledge": "Marcar como revisada",
     "acknowledgedBy": "Revisada por",
     "usageOverage": {
+      "kindExhausted": "Cupo agotado",
+      "kindLowQuota": "Quedan pocas",
       "scopeMembership": "Cupo de membresía",
       "scopeIndividual": "Tope individual",
       "tableHeaders": {
@@ -530,10 +536,11 @@
       "cancellationCutoff": "Cancelación sin Penalidad (antelación)"
     },
     "membershipUsage": {
+      "lowQuotaThresholdHint": "Operaciones restantes para avisar al miembro y al operador (Contrato 2.4: 5).",
+      "lowQuotaThreshold": "Avisar cuando queden",
       "title": "Uso de Membresía",
-      "description": "Cupo anual por defecto de cada membresía (se puede ajustar por miembro o familia en su ficha) y monto por excedente",
-      "annualUsageLimit": "Límite de Usos Anuales",
-      "overageAmount": "Monto por Uso Excedente (USD)"
+      "description": "Operaciones incluidas por defecto en cada membresía (se pueden ajustar por miembro en su ficha). Agotadas, las reservas nuevas quedan pendientes de aprobación (Contrato 2.4).",
+      "annualUsageLimit": "Operaciones incluidas por membresía"
     },
     "blackoutDates": {
       "title": "Fechas Bloqueadas",
@@ -652,6 +659,7 @@
   },
 
   "ruleWarnings": {
+    "quota_exhausted": "Cupo agotado",
     "outside_hours": "Fuera de horario",
     "short_notice": "Aviso con poca antelación",
     "blackout_date": "Día bloqueado",

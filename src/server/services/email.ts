@@ -188,7 +188,7 @@ interface SendEmailOptions {
   html: string;
   userId?: string;
   bookingId?: string;
-  type: "confirmation" | "cancellation" | "reminder" | "password_reset" | "misuse_alert" | "usage_overage_alert";
+  type: "confirmation" | "cancellation" | "reminder" | "password_reset" | "misuse_alert" | "usage_overage_alert" | "low_quota_notice";
 }
 
 /**
@@ -378,6 +378,8 @@ interface PendingBookingApprovalData extends BookingEmailData {
   appUrl: string;
   contactPhone?: string | null;
   helicopterRegistration?: string | null;
+  /** Why it needs approval (no member aboard, quota exhausted...) */
+  reason?: string;
   passengers: Array<{
     name: string;
     identificationType: "cedula" | "passport" | "other";
@@ -421,6 +423,11 @@ export async function sendPendingBookingApprovalEmail(data: PendingBookingApprov
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
       Hay una nueva solicitud de reserva del helipuerto esperando aprobacion.
     </p>
+    ${
+      data.reason
+        ? `<p style="margin: 0 0 24px; padding: 12px 16px; background-color: #fef3c7; border-radius: 8px; color: #92400e; font-size: 14px;"><strong>Motivo:</strong> ${escapeHtml(data.reason)}</p>`
+        : ""
+    }
 
     <div style="background-color: #f4f4f5; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
       <table width="100%" cellpadding="0" cellspacing="0">
@@ -538,31 +545,42 @@ export async function sendMisuseAlertEmail(data: MisuseAlertData): Promise<boole
   return results.some(Boolean);
 }
 
-interface UsageOverageAlertData {
+interface UsageQuotaAlertData {
+  kind: "low_quota" | "exhausted";
   memberName: string;
   memberCode: string | null;
   usageCount: number;
   annualUsageLimit: number;
-  overageAmount: number;
   periodStart: Date;
   periodEnd: Date;
 }
 
-export async function sendUsageOverageEmail(data: UsageOverageAlertData): Promise<boolean> {
+/**
+ * Operator alert (Contrato 2.4): few operations left, or quota used up. There is no overage
+ * billing; once used up, the membership's new bookings go to pending approval.
+ */
+export async function sendUsageQuotaEmail(data: UsageQuotaAlertData): Promise<boolean> {
   const recipients = await getApprovalRecipients();
 
   if (recipients.length === 0) {
     return false;
   }
 
-  const overageUses = data.usageCount - data.annualUsageLimit;
+  const remaining = Math.max(data.annualUsageLimit - data.usageCount, 0);
+  const isExhausted = data.kind === "exhausted";
+  const title = isExhausted ? "Cupo de membresia agotado" : "Quedan pocas operaciones";
+  const summary = isExhausted
+    ? `ha usado <strong>${data.usageCount} de ${data.annualUsageLimit} operaciones</strong> de su periodo de membresia.
+      Conforme a la clausula 2.4 del Contrato, cesa su derecho a solicitar nuevas reservas: las reservas
+      nuevas de esta membresia quedaran <strong>pendientes de aprobacion</strong> hasta que se firme una nueva membresia.`
+    : `le quedan <strong>${remaining} operaciones</strong> de ${data.annualUsageLimit} en su periodo de membresia.
+      Conforme a la clausula 2.4 del Contrato, corresponde comunicarle si desea gestionar una nueva membresia.`;
 
   const content = `
-    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Alerta de excedente de uso 📈</h2>
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${title}</h2>
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
       El miembro <strong>${escapeHtml(data.memberName)}</strong>${data.memberCode ? ` (codigo ${escapeHtml(data.memberCode)})` : ""}
-      ha usado el helipuerto <strong>${data.usageCount} veces</strong> en su periodo de membresia vigente,
-      superando el limite de <strong>${data.annualUsageLimit} usos</strong>.
+      ${summary}
     </p>
 
     <div style="background-color: #fef3c7; border: 1px solid #fcd34d; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
@@ -572,12 +590,12 @@ export async function sendUsageOverageEmail(data: UsageOverageAlertData): Promis
           <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${escapeHtml(data.memberName)}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Usos en el periodo</td>
-          <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${data.usageCount} (limite: ${data.annualUsageLimit})</td>
+          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Operaciones usadas</td>
+          <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${data.usageCount} de ${data.annualUsageLimit}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Usos excedentes</td>
-          <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${overageUses} x $${data.overageAmount} = $${overageUses * data.overageAmount}</td>
+          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Disponibles</td>
+          <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${remaining}</td>
         </tr>
         <tr>
           <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Periodo de membresia</td>
@@ -585,11 +603,6 @@ export async function sendUsageOverageEmail(data: UsageOverageAlertData): Promis
         </tr>
       </table>
     </div>
-
-    <p style="margin: 0 0 24px; color: #52525b; font-size: 14px;">
-      Esta es una notificacion informativa; no bloquea reservas futuras de este miembro. El monto de excedente
-      se factura por separado.
-    </p>
 
     <a href="${appUrl()}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       Ver alertas
@@ -600,7 +613,7 @@ export async function sendUsageOverageEmail(data: UsageOverageAlertData): Promis
     recipients.map((to) =>
       sendEmail({
         to,
-        subject: `Alerta de excedente de uso - ${data.memberName}`,
+        subject: `${title} - ${data.memberName}`,
         html: baseTemplate(content),
         type: "usage_overage_alert",
       })
@@ -608,6 +621,40 @@ export async function sendUsageOverageEmail(data: UsageOverageAlertData): Promis
   );
 
   return results.some(Boolean);
+}
+
+interface LowQuotaMemberNoticeData {
+  to: string;
+  memberName: string;
+  remaining: number;
+  annualUsageLimit: number;
+  periodEnd: Date;
+}
+
+/** Notice to the titular when few operations remain (Contrato 2.4). */
+export async function sendLowQuotaMemberNotice(data: LowQuotaMemberNoticeData): Promise<boolean> {
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Aviso de su membresia</h2>
+    <p style="margin: 0 0 16px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      Estimado(a) ${escapeHtml(data.memberName)}:
+    </p>
+    <p style="margin: 0 0 16px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      Le informamos que a su membresia del helipuerto le quedan <strong>${data.remaining} operaciones</strong>
+      de las ${data.annualUsageLimit} incluidas en su periodo vigente, que finaliza el
+      ${data.periodEnd.toLocaleDateString("es-DO")}.
+    </p>
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      Una vez agotadas las operaciones incluidas, cesa el derecho a solicitar nuevas reservas (clausula 2.4
+      del Contrato de Membresia). Le agradeceremos indicarnos si desea gestionar una nueva membresia.
+    </p>
+  `;
+
+  return sendEmail({
+    to: data.to,
+    subject: `Aviso: quedan ${data.remaining} operaciones en su membresia`,
+    html: baseTemplate(content),
+    type: "low_quota_notice",
+  });
 }
 
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<boolean> {

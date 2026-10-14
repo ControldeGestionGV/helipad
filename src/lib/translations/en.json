@@ -366,9 +366,13 @@
   },
 
   "memberForm": {
+    "quotaRemaining": "{count} left",
+    "quotaExhausted": "used up",
+    "contactEmailHint": "Optional. Receives the notice when few operations remain (Contract 2.4).",
+    "contactEmail": "Titular contact email",
     "membershipQuota": "Annual operations quota (membership)",
     "quotaGlobalPlaceholder": "Global: {limit}",
-    "membershipQuotaHint": "Shared by the titular and their whole family/business group. Empty = global value from Settings.",
+    "membershipQuotaHint": "Shared by the titular and their authorized users. Empty = global value from Settings.",
     "quotaUsed": "Used in the period",
     "subMemberUsed": "{count} flights",
     "individualCapPlaceholder": "Cap",
@@ -391,9 +395,9 @@
     "aircraftPlaceholder": "Registration, e.g. N123AB",
     "addAircraft": "Add",
     "noAircraft": "No aircraft declared",
-    "groupSection": "Family/business group",
-    "noSubMembers": "No sub-members added",
-    "addSubMember": "Add sub-member",
+    "groupSection": "Authorized users",
+    "noSubMembers": "No authorized users",
+    "addSubMember": "Add authorized user",
     "deactivateSubMember": "Deactivate",
     "createMember": "Create Member",
     "updateMember": "Update Member"
@@ -415,9 +419,9 @@
 
   "adminAlerts": {
     "title": "Alerts",
-    "description": "Helipad misuse and membership usage quota overages",
+    "description": "Helipad misuse and membership quotas (running low or used up)",
     "tabMisuse": "Misuse",
-    "tabUsageOverage": "Usage Overage",
+    "tabUsageOverage": "Membership Quota",
     "noAlerts": "No open alerts",
     "tableHeaders": {
       "registration": "Registration",
@@ -431,6 +435,8 @@
     "acknowledge": "Mark as reviewed",
     "acknowledgedBy": "Reviewed by",
     "usageOverage": {
+      "kindExhausted": "Quota used up",
+      "kindLowQuota": "Running low",
       "scopeMembership": "Membership quota",
       "scopeIndividual": "Individual cap",
       "tableHeaders": {
@@ -529,10 +535,11 @@
       "cancellationCutoff": "Penalty-free Cancellation (notice)"
     },
     "membershipUsage": {
+      "lowQuotaThresholdHint": "Remaining operations at which the member and the operator are notified (Contract 2.4: 5).",
+      "lowQuotaThreshold": "Notify when remaining",
       "title": "Membership Usage",
-      "description": "Default annual quota per membership (can be adjusted per member or family on their record) and overage amount",
-      "annualUsageLimit": "Annual Usage Limit",
-      "overageAmount": "Overage Charge Amount (USD)"
+      "description": "Default operations included in each membership (can be adjusted per member on their record). Once used up, new bookings go to pending approval (Contract 2.4).",
+      "annualUsageLimit": "Operations included per membership"
     },
     "blackoutDates": {
       "title": "Blackout Dates",
@@ -651,6 +658,7 @@
   },
 
   "ruleWarnings": {
+    "quota_exhausted": "Quota used up",
     "outside_hours": "Outside operating hours",
     "short_notice": "Short notice",
     "blackout_date": "Blackout date",

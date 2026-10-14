@@ -32,6 +32,7 @@ const memberFormSchema = z.object({
   notes: z.string().max(500).optional(),
   isActive: z.boolean(),
   memberCode: z.string().min(1, "Member code is required").max(50),
+  contactEmail: z.union([z.string().email("Invalid email").max(255), z.literal("")]).optional(),
   // Text from the input; "" = no own quota (global setting applies)
   annualUsageLimit: z
     .string()
@@ -67,6 +68,7 @@ interface Member {
   isActive: boolean;
   memberCode: string | null;
   annualUsageLimit?: number | null;
+  contactEmail?: string | null;
   aircraft?: Array<{ id: string; registration: string }>;
   subMembers?: SubMember[];
 }
@@ -156,6 +158,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
               isActive: member.isActive,
               memberCode: member.memberCode ?? "",
               annualUsageLimit: member.annualUsageLimit != null ? String(member.annualUsageLimit) : "",
+              contactEmail: member.contactEmail ?? "",
             }
           : {
               firstName: "",
@@ -170,6 +173,7 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
               isActive: true,
               memberCode: "",
               annualUsageLimit: "",
+              contactEmail: "",
             }
       );
     }
@@ -293,6 +297,18 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="contactEmail">{t("memberForm.contactEmail")}</Label>
+              <Input
+                id="contactEmail"
+                type="email"
+                placeholder="correo@ejemplo.com"
+                {...register("contactEmail")}
+                error={!!errors.contactEmail}
+              />
+              <p className="text-xs text-zinc-500">{t("memberForm.contactEmailHint")}</p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="annualUsageLimit">{t("memberForm.membershipQuota")}</Label>
               <Input
                 id="annualUsageLimit"
@@ -310,14 +326,23 @@ export function MemberForm({ member, open, onOpenChange, onSubmit, isLoading }: 
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-600">{t("memberForm.quotaUsed")}</span>
                     <span
-                      className={`font-semibold ${usage.data.used > usage.data.limit ? "text-red-600" : "text-zinc-900"}`}
+                      className={`font-semibold ${
+                        usage.data.isExhausted ? "text-red-600" : usage.data.isLow ? "text-amber-600" : "text-zinc-900"
+                      }`}
                     >
                       {usage.data.used} / {usage.data.limit}
+                      {usage.data.isExhausted
+                        ? ` · ${t("memberForm.quotaExhausted")}`
+                        : usage.data.isLow
+                        ? ` · ${t("memberForm.quotaRemaining", { count: usage.data.remaining })}`
+                        : ""}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
                     <div
-                      className={`h-full rounded-full ${usage.data.used > usage.data.limit ? "bg-red-500" : "bg-brand-500"}`}
+                      className={`h-full rounded-full ${
+                        usage.data.isExhausted ? "bg-red-500" : usage.data.isLow ? "bg-amber-500" : "bg-brand-500"
+                      }`}
                       style={{ width: `${Math.min(100, (usage.data.used / Math.max(usage.data.limit, 1)) * 100)}%` }}
                     />
                   </div>

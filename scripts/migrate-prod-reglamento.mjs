@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Applies migrations 0012-0018 (member groups, usage alerts, Reglamento v2, QR access control,
+ * Applies migrations 0012-0019 (member groups, usage alerts, Reglamento v2, QR access control,
  * per-member/family usage quotas, member photos)
  * to the production Turso database, safely:
  *
  *   1. Backs up every table to backups/turso-<timestamp>.json (local file, gitignored).
  *   2. Detects which migrations are already applied and only runs the missing ones.
- *      All of them only ADD columns/tables/indexes; 0014 also overwrites five settings rows.
+ *      All of them only ADD columns/tables/indexes; 0014 also overwrites five settings rows and
+ *      0019 rewrites the membershipUsage setting (keeps the quota, drops the overage amount).
  *   3. Checks that no table lost rows.
  *
  * Dry run by default (backup + report only). Pass --apply to run the migrations.
@@ -62,6 +63,7 @@ const MIGRATIONS = [
   { file: "0016_add_access_codes_and_check_ins.sql", applied: async () => (await columns("bookings")).includes("access_code") },
   { file: "0017_add_member_usage_limits.sql", applied: async () => (await columns("members")).includes("annual_usage_limit") },
   { file: "0018_add_member_photos.sql", applied: async (t) => t.includes("member_photos") },
+  { file: "0019_quota_notices_and_contact_email.sql", applied: async () => (await columns("members")).includes("contact_email") },
 ];
 
 async function main() {

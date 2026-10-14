@@ -14,7 +14,7 @@ import {
 import { createApprovalToken } from "@/lib/approval-tokens";
 import { checkMembershipForPassengers } from "@/server/services/membership";
 import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
-import { checkAndTriggerUsageOverage } from "@/server/services/usage-alerts";
+import { checkAndTriggerUsageAlerts, getQuotaStatusForPassengers } from "@/server/services/usage-alerts";
 import { getBookingRules, getRuleWarnings, isLateCancellation } from "@/server/services/booking-rules";
 import { getAppUrl } from "@/server/app-url";
 import { historicalBookingInputSchema, type HistoricalBookingInput } from "@/lib/validations";
@@ -113,7 +113,7 @@ async function insertHistoricalBooking(
 
   // Independent of membershipStatus above (which prioritizes "vip" over "member" when both
   // are aboard) - does its own matching, so it still catches a member sharing a flight with a VIP.
-  await checkAndTriggerUsageOverage(input.passengers).catch((err) =>
+  await checkAndTriggerUsageAlerts(input.passengers).catch((err) =>
     console.error("Failed to check usage overage alert:", err)
   );
 
@@ -368,7 +368,13 @@ export const bookingsRouter = createTRPCRouter({
       // Otherwise it requires special admin approval (no titular aboard).
       const isAdmin = ctx.session.user.role === "admin";
       const membershipStatus = await checkMembershipForPassengers(input.passengers);
-      const bookingStatus = isAdmin || membershipStatus !== "none" ? "confirmed" : "pending";
+      // Contrato 2.4: once a membership's operations are used up, its right to book ceases. Not
+      // blocked: the booking goes to pending approval (e.g. while a new membership is signed).
+      const quotaExhausted =
+        membershipStatus === "member" && !(await getQuotaStatusForPassengers(input.passengers)).hasQuota;
+      const bookingStatus =
+        isAdmin || (membershipStatus !== "none" && !quotaExhausted) ? "confirmed" : "pending";
+      const allWarnings: string[] = [...ruleWarnings, ...(quotaExhausted ? ["quota_exhausted"] : [])];
 
       const [newBooking] = await ctx.db
         .insert(bookings)
@@ -384,7 +390,7 @@ export const bookingsRouter = createTRPCRouter({
           declaredPeople: input.declaredPeople ?? null,
           status: bookingStatus,
           membershipStatus,
-          ruleWarnings: ruleWarnings.length > 0 ? ruleWarnings : null,
+          ruleWarnings: allWarnings.length > 0 ? allWarnings : null,
         })
         .returning();
 
@@ -419,7 +425,7 @@ export const bookingsRouter = createTRPCRouter({
       // Independent of membershipStatus above (which prioritizes "vip" over "member" when both
       // are aboard) - does its own matching, so it still catches a member sharing a flight with a VIP.
       if (bookingStatus === "confirmed") {
-        await checkAndTriggerUsageOverage(input.passengers).catch((err) =>
+        await checkAndTriggerUsageAlerts(input.passengers).catch((err) =>
           console.error("Failed to check usage overage alert:", err)
         );
       }
@@ -478,6 +484,9 @@ export const bookingsRouter = createTRPCRouter({
                 approveUrl,
                 rejectUrl,
                 appUrl: `${appUrl}/admin/bookings`,
+                reason: quotaExhausted
+                  ? "La membresia del miembro a bordo agoto sus operaciones incluidas (Contrato 2.4)."
+                  : "Ningun titular de membresia ni VIP a bordo.",
                 locale: "es",
               })
             )
@@ -677,7 +686,7 @@ export const bookingsRouter = createTRPCRouter({
       // Only recomputed when the passenger list actually changed, same condition as
       // membershipStatus above. Independent of it otherwise - see note in `create`.
       if (passengerUpdates && updated.status === "confirmed") {
-        await checkAndTriggerUsageOverage(passengerUpdates).catch((err) =>
+        await checkAndTriggerUsageAlerts(passengerUpdates).catch((err) =>
           console.error("Failed to check usage overage alert:", err)
         );
       }
@@ -936,7 +945,7 @@ export const bookingsRouter = createTRPCRouter({
         );
       }
 
-      await checkAndTriggerUsageOverage(existing.passengers).catch((err) =>
+      await checkAndTriggerUsageAlerts(existing.passengers).catch((err) =>
         console.error("Failed to check usage overage alert:", err)
       );
 

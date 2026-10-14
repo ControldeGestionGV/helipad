@@ -86,16 +86,19 @@ export const members = sqliteTable("members", {
   // Codigo del titular (ingresado a mano al firmar el contrato, ej. "8814"). Null en filas
   // creadas antes de este campo. Unico via indice aparte (ver migracion 0012).
   memberCode: text("member_code"),
-  // Null = titular. No-null = sub-miembro de un grupo familiar/empresarial, apunta al titular.
-  // Solo 2 niveles: se valida en la mutation que un sub-miembro no pueda tener sub-miembros.
+  // Null = titular (EL MIEMBRO). No-null = Usuario Autorizado del titular (Contrato, Clausula Primera).
+  // Solo 2 niveles: se valida en la mutation que un usuario autorizado no pueda tener los suyos.
   parentMemberId: text("parent_member_id").references((): AnySQLiteColumn => members.id, {
     onDelete: "cascade",
   }),
   // Cupo anual de Operaciones Computables (Contrato 2.4).
-  // Titular: cupo de toda la membresia (titular + sub-miembros comparten el contador).
+  // Titular: cupo de toda la membresia (titular + usuarios autorizados comparten el contador).
   //   Null = valor global de settings.membershipUsage.annualUsageLimit.
-  // Sub-miembro: tope individual opcional dentro del cupo familiar. Null = sin tope propio.
+  // Usuario autorizado: tope individual opcional dentro del cupo de la membresia. Null = sin tope propio.
   annualUsageLimit: integer("annual_usage_limit"),
+  // Correo del titular para avisos de la membresia (Contrato 2.4: aviso al quedar 5 operaciones).
+  // Opcional; sin el, el aviso solo llega al operador.
+  contactEmail: text("contact_email"),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
@@ -157,6 +160,9 @@ export const memberUsageAlerts = sqliteTable("member_usage_alerts", {
   // "membership": the titular's group quota was exceeded (memberId = titular).
   // "individual": a sub-member exceeded their own cap (memberId = sub-member).
   scope: text("scope", { enum: ["membership", "individual"] }).notNull().default("membership"),
+  // Contrato 2.4: "low_quota" = quedan pocas operaciones (aviso), "exhausted" = cupo agotado
+  // (cesa el derecho a reservar; las reservas nuevas quedan pendientes de aprobacion).
+  kind: text("kind", { enum: ["low_quota", "exhausted"] }).notNull().default("exhausted"),
   // Quota in force when the alert was raised, so the alert still reads right if it changes later
   usageLimit: integer("usage_limit"),
   periodStart: integer("period_start", { mode: "timestamp" }).notNull(),
@@ -201,7 +207,7 @@ export const emailLogs = sqliteTable("email_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   bookingId: text("booking_id").references(() => bookings.id, { onDelete: "set null" }),
-  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset", "misuse_alert", "usage_overage_alert"] }).notNull(),
+  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset", "misuse_alert", "usage_overage_alert", "low_quota_notice"] }).notNull(),
   status: text("status", { enum: ["sent", "failed"] }).notNull(),
   sentAt: integer("sent_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   error: text("error"),

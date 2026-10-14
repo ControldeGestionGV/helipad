@@ -13,6 +13,7 @@ This directory contains SQL migration files for the Turso production database.
 - `0016_add_access_codes_and_check_ins.sql` - Adds `bookings.access_code` (QR credential, unique) and the `booking_check_ins` access log (Reglamento Art. 6.5 / 12.7)
 - `0017_add_member_usage_limits.sql` - Adds `members.annual_usage_limit` (family quota on the titular, optional individual cap on sub-members) and `member_usage_alerts.scope` / `usage_limit`
 - `0018_add_member_photos.sql` - Adds `member_photos` (2x2 identification photo per member, Reglamento Art. 13.5)
+- `0019_quota_notices_and_contact_email.sql` - Adds `members.contact_email` and `member_usage_alerts.kind` (low_quota / exhausted); drops the overage amount from `membershipUsage` (Contrato 2.4 updated)
 
 ## 🚀 How to Apply Migrations to Turso
 

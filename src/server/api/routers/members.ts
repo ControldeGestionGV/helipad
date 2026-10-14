@@ -20,6 +20,8 @@ const memberInputSchema = z.object({
   // Contrato 2.4. Titular: quota of the whole membership; sub-member: optional individual cap.
   // null = titular uses the global setting / sub-member has no own cap.
   annualUsageLimit: z.number().int().min(0).max(999).nullable().optional(),
+  // Titular's email for membership notices (Contrato 2.4). "" clears it.
+  contactEmail: z.union([z.string().email().max(255), z.literal("")]).nullable().optional(),
 });
 
 export const membersRouter = createTRPCRouter({
@@ -128,6 +130,7 @@ export const membersRouter = createTRPCRouter({
         notes: input.notes,
         memberCode: input.memberCode,
         annualUsageLimit: input.annualUsageLimit ?? null,
+        contactEmail: input.contactEmail?.trim() || null,
       })
       .returning();
 
@@ -137,7 +140,7 @@ export const membersRouter = createTRPCRouter({
   update: adminProcedure
     .input(memberInputSchema.partial().extend({ id: z.string().uuid(), isActive: z.boolean().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const { id, identificationNumber, membershipStartDate, membershipEndDate, ...rest } = input;
+      const { id, identificationNumber, membershipStartDate, membershipEndDate, contactEmail, ...rest } = input;
 
       const existing = await ctx.db.query.members.findFirst({ where: eq(members.id, id) });
       if (!existing) {
@@ -157,6 +160,7 @@ export const membersRouter = createTRPCRouter({
         .update(members)
         .set({
           ...rest,
+          contactEmail: contactEmail === undefined ? undefined : contactEmail?.trim() || null,
           identificationNumber,
           identificationNumberNormalized: identificationNumber
             ? normalizeIdentification(identificationNumber)
