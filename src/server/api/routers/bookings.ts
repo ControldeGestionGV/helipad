@@ -748,6 +748,17 @@ export const bookingsRouter = createTRPCRouter({
         .returning();
 
       // Broadcast SSE event for real-time updates
+      // A cancelled confirmed booking frees an operation: refresh the quota alerts' counts
+      if (existing.status === "confirmed") {
+        const cancelledPassengers = await ctx.db.query.passengers.findMany({
+          where: eq(passengers.bookingId, cancelled.id),
+          columns: { identificationNumber: true },
+        });
+        await checkAndTriggerUsageAlerts(cancelledPassengers).catch((err) =>
+          console.error("Failed to refresh usage alerts:", err)
+        );
+      }
+
       broadcastBookingCancelled({
         id: cancelled.id,
         userId: cancelled.userId,

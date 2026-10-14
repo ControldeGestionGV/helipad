@@ -218,7 +218,7 @@ async function raiseOrUpdateAlert(params: {
 }
 
 /**
- * After a booking is confirmed, checks the quotas of every membership with someone aboard:
+ * After a booking is confirmed or cancelled, checks the quotas of every membership with someone aboard:
  * - Membership quota (titular.annualUsageLimit, or the global setting), shared by the titular and
  *   all Usuarios Autorizados. "low_quota" when lowQuotaThreshold or fewer remain (operator alert +
  *   notice to the titular's contact email), "exhausted" when used up. Alerts on the titular.
@@ -250,6 +250,18 @@ export async function checkAndTriggerUsageAlerts(
     const used = await membershipUsed(titular, group);
     const remaining = limit - used;
     const displayName = `${titular.firstName} ${titular.lastName}`;
+
+    // Keep this period's existing alerts in sync with the real count (a cancellation lowers it)
+    await db
+      .update(memberUsageAlerts)
+      .set({ usageCount: used, usageLimit: limit })
+      .where(
+        and(
+          eq(memberUsageAlerts.memberId, titular.id),
+          eq(memberUsageAlerts.scope, "membership"),
+          eq(memberUsageAlerts.periodEnd, titular.membershipEndDate)
+        )
+      );
     const base = {
       member: titular,
       scope: "membership" as const,
@@ -295,6 +307,17 @@ export async function checkAndTriggerUsageAlerts(
       titular.membershipStartDate,
       titular.membershipEndDate
     );
+
+    await db
+      .update(memberUsageAlerts)
+      .set({ usageCount: used, usageLimit: member.annualUsageLimit })
+      .where(
+        and(
+          eq(memberUsageAlerts.memberId, member.id),
+          eq(memberUsageAlerts.scope, "individual"),
+          eq(memberUsageAlerts.periodEnd, titular.membershipEndDate)
+        )
+      );
 
     if (used >= member.annualUsageLimit) {
       const created = await raiseOrUpdateAlert({
