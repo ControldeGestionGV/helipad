@@ -698,8 +698,6 @@
     "exception": "excepción",
     "unknownCodeTitle": "Código no válido",
     "unknownCodeDescription": "Este QR no corresponde a ninguna reserva. Busca la reserva en la lista del día.",
-    "staffOnlyTitle": "Solo para personal de seguridad",
-    "staffOnlyDescription": "Presenta este código al personal de seguridad del helipuerto.",
     "myQrTitle": "Código de acceso",
     "myQrInstructions": "Presenta este QR al llegar. Cubre a todas las personas registradas en la reserva.",
     "states": {

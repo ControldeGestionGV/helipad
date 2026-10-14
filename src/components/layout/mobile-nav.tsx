@@ -19,11 +19,9 @@ export function MobileNav({ isAdmin, isSecurity }: MobileNavProps) {
   const navItems = [
     { label: t("navigation.calendar"), href: ROUTES.calendar, icon: Calendar },
     { label: t("navigation.bookings"), href: ROUTES.myBookings, icon: ListOrdered },
+    { label: t("navigation.checkIn"), href: ROUTES.checkIn, icon: ScanLine },
     ...(isAdmin || isSecurity
-      ? [
-          { label: t("navigation.checkIn"), href: ROUTES.adminCheckIn, icon: ScanLine },
-          { label: t("navigation.admin"), href: ROUTES.adminDashboard, icon: LayoutDashboard },
-        ]
+      ? [{ label: t("navigation.admin"), href: ROUTES.adminDashboard, icon: LayoutDashboard }]
       : []),
     { label: t("navigation.profile"), href: "/profile", icon: User },
   ];

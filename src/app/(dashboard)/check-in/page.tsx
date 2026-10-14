@@ -23,7 +23,7 @@ const STATE_BADGE = {
 } as const;
 
 /**
- * Access control for today. The normal flow is scanning the QR with the phone camera; this list
+ * Access control for today, open to every signed-in user (security, reception, booking staff). The normal flow is scanning the QR with the phone camera; this list
  * is the manual fallback (Reglamento Art. 6.5): search by passenger, member or aircraft.
  */
 export default function CheckInListPage() {

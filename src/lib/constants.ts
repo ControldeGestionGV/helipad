@@ -49,7 +49,7 @@ export const ROUTES = {
   newBooking: "/bookings/new",
   adminDashboard: "/admin",
   adminOperation: "/admin/operation",
-  adminCheckIn: "/admin/check-in",
+  checkIn: "/check-in",
   adminUsers: "/admin/users",
   adminBookings: "/admin/bookings",
   adminBookingsHistorical: "/admin/bookings/historical",

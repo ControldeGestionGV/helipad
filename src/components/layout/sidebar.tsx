@@ -38,11 +38,11 @@ export function Sidebar({ user }: SidebarProps) {
     user: [
       { label: t("navigation.calendar"), href: ROUTES.calendar, icon: Calendar },
       { label: t("navigation.myBookings"), href: ROUTES.myBookings, icon: ListOrdered },
+      { label: t("navigation.checkIn"), href: ROUTES.checkIn, icon: ScanLine },
     ],
     admin: [
       { label: t("navigation.dashboard"), href: ROUTES.adminDashboard, icon: LayoutDashboard, adminOnly: false },
       { label: "Operacion de Hoy", href: ROUTES.adminOperation, icon: ClipboardCheck, adminOnly: false },
-      { label: t("navigation.checkIn"), href: ROUTES.adminCheckIn, icon: ScanLine, adminOnly: false },
       { label: t("navigation.users"), href: ROUTES.adminUsers, icon: Users, adminOnly: false },
       { label: t("navigation.members"), href: ROUTES.adminMembers, icon: IdCard, adminOnly: false },
       { label: t("navigation.allBookings"), href: ROUTES.adminBookings, icon: ClipboardList, adminOnly: false },

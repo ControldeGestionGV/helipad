@@ -697,8 +697,6 @@
     "exception": "exception",
     "unknownCodeTitle": "Invalid code",
     "unknownCodeDescription": "This QR does not match any booking. Look for the booking in today's list.",
-    "staffOnlyTitle": "Security staff only",
-    "staffOnlyDescription": "Show this code to the helipad security staff.",
     "myQrTitle": "Access code",
     "myQrInstructions": "Show this QR on arrival. It covers everyone registered on the booking.",
     "states": {

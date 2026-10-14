@@ -2,7 +2,7 @@ import { z } from "zod";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { normalizeIdentification } from "@/server/services/membership";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, protectedProcedure, securityOrAdminProcedure } from "../trpc";
+import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { bookingCheckIns, bookings, members } from "@/server/db/schema";
 import type { DbClient } from "@/server/db";
 import {
@@ -13,8 +13,11 @@ import {
   getAccessState,
 } from "@/server/services/access-control";
 
+// Access control is open to every signed-in user: whoever receives the passengers (security,
+// reception, the staff who book) verifies QR codes. Every entry records who registered it.
+
 /**
- * Everything security needs to validate a booking at the door. Passengers are returned by
+ * Everything needed to validate a booking at the door. Passengers are returned by
  * name only (no ID numbers): the QR screen is shown on a shared device at the access point.
  */
 async function loadCheckInDetail(db: DbClient, where: { code: string } | { bookingId: string }) {
@@ -78,23 +81,23 @@ async function loadCheckInDetail(db: DbClient, where: { code: string } | { booki
 
 export const checkInRouter = createTRPCRouter({
   /**
-   * Security: booking behind a scanned QR. Returns null for an unknown code.
+   * Booking behind a scanned QR. Returns null for an unknown code.
    */
-  getByCode: securityOrAdminProcedure
+  getByCode: protectedProcedure
     .input(z.object({ code: z.string().min(1).max(64) }))
     .query(({ ctx, input }) => loadCheckInDetail(ctx.db, { code: input.code })),
 
   /**
-   * Security: same detail by booking id, for the manual fallback (Art. 6.5: QR system down).
+   * Same detail by booking id, for the manual fallback (Art. 6.5: QR system down).
    */
-  getByBookingId: securityOrAdminProcedure
+  getByBookingId: protectedProcedure
     .input(z.object({ bookingId: z.string().uuid() }))
     .query(({ ctx, input }) => loadCheckInDetail(ctx.db, { bookingId: input.bookingId })),
 
   /**
-   * Security: confirmed bookings in a range (today) with their access counts.
+   * Confirmed bookings in a range (today) with their access counts.
    */
-  listForDay: securityOrAdminProcedure
+  listForDay: protectedProcedure
     .input(z.object({ startDate: z.string().datetime(), endDate: z.string().datetime() }))
     .query(async ({ ctx, input }) => {
       const rows = await ctx.db.query.bookings.findMany({
@@ -128,10 +131,10 @@ export const checkInRouter = createTRPCRouter({
     }),
 
   /**
-   * Security: register people entering. Outside the slot or beyond the declared people it is
+   * Register people entering. Outside the slot or beyond the declared people it is
    * still allowed, but recorded as an exception and requires a note.
    */
-  register: securityOrAdminProcedure
+  register: protectedProcedure
     .input(
       z.object({
         bookingId: z.string().uuid(),

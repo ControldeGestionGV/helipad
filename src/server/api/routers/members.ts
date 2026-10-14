@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, adminProcedure, securityOrAdminProcedure } from "../trpc";
+import { createTRPCRouter, adminProcedure, protectedProcedure, securityOrAdminProcedure } from "../trpc";
 import { members, memberAircraft, memberPhotos } from "@/server/db/schema";
 import { eq, like, or, and, desc, asc, sql, isNull, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -197,7 +197,8 @@ export const membersRouter = createTRPCRouter({
   /**
    * Identification photo (Reglamento Art. 13.5). Null when the member has none.
    */
-  getPhoto: securityOrAdminProcedure
+  // Any signed-in user: whoever verifies access at the door compares the photo with the person
+  getPhoto: protectedProcedure
     .input(z.object({ memberId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const photo = await ctx.db.query.memberPhotos.findFirst({
@@ -210,7 +211,7 @@ export const membersRouter = createTRPCRouter({
   /**
    * Which of these members have a photo, without loading the images.
    */
-  photoStatus: securityOrAdminProcedure
+  photoStatus: protectedProcedure
     .input(z.object({ memberIds: z.array(z.string().uuid()).max(100) }))
     .query(async ({ ctx, input }) => {
       if (input.memberIds.length === 0) return [];
