@@ -274,8 +274,15 @@ export function BookingForm({
   }, [watchedDate, watchedStartTime, blackoutDates, openMinutes, lastInHoursMinutes, noticeMinutes, editingBooking]);
 
   const handleFormSubmit = (data: BookingFormData) => {
-    // Validate passengers before submitting
-    if (passengers.length === 0) {
+    // Blank passenger rows (e.g. the empty one the list starts with) are ignored. A row with only
+    // a name or only a document is an error the person can fix here, instead of the server
+    // rejecting the whole booking with a validation message they can't act on.
+    const filledPassengers = passengers.filter((p) => p.name.trim() || p.identificationNumber.trim());
+    if (filledPassengers.some((p) => !p.name.trim() || !p.identificationNumber.trim())) {
+      setPassengerError(t("validations.passengerIncomplete"));
+      return;
+    }
+    if (filledPassengers.length === 0) {
       setPassengerError(t("validations.atLeastOnePassenger"));
       return;
     }
@@ -303,7 +310,7 @@ export function BookingForm({
       // On edit, null clears a previously stored value; on create, undefined just omits it
       pilotName: data.pilotName?.trim() || (editingBooking ? null : undefined),
       declaredPeople: data.declaredPeople ? Number(data.declaredPeople) : editingBooking ? null : undefined,
-      passengers,
+      passengers: filledPassengers.map((p) => ({ ...p, name: p.name.trim(), identificationNumber: p.identificationNumber.trim() })),
     });
   };
 

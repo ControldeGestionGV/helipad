@@ -638,7 +638,8 @@
     "firstNameRequired": "El nombre es requerido",
     "lastNameRequired": "El apellido es requerido",
     "currentPasswordRequired": "La contraseña actual es requerida",
-    "atLeastOnePassenger": "Se requiere al menos un pasajero"
+    "atLeastOnePassenger": "Se requiere al menos un pasajero",
+    "passengerIncomplete": "Complete el nombre y el documento de cada pasajero, o quite la fila vacía."
   },
 
   "notifications": {

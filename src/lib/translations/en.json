@@ -637,7 +637,8 @@
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
     "currentPasswordRequired": "Current password is required",
-    "atLeastOnePassenger": "At least one passenger is required"
+    "atLeastOnePassenger": "At least one passenger is required",
+    "passengerIncomplete": "Fill in the name and ID of each passenger, or remove the empty row."
   },
 
   "notifications": {
