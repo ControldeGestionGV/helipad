@@ -13,6 +13,7 @@ import {
   Loader2,
   Settings as SettingsIcon,
   Users,
+  Mail,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useTranslations } from "@/hooks/use-translations";
@@ -22,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { ALERT_SCENARIOS, type AlertScenario, type AlertSubscription } from "@/lib/alert-scenarios";
 
 export default function SettingsPage() {
   const { t, locale, translateError } = useTranslations();
@@ -47,6 +49,8 @@ export default function SettingsPage() {
   });
   const [newApproverEmail, setNewApproverEmail] = useState("");
   const [membershipUsage, setMembershipUsage] = useState({ annualUsageLimit: 36, lowQuotaThreshold: 5 });
+  const [alertSubscriptions, setAlertSubscriptions] = useState<AlertSubscription[]>([]);
+  const [newSubscriberEmail, setNewSubscriberEmail] = useState("");
 
   // Update form when settings load
   useEffect(() => {
@@ -62,6 +66,7 @@ export default function SettingsPage() {
         approverEmails: settings.emailNotifications.approverEmails ?? [],
       });
       setMembershipUsage(settings.membershipUsage);
+      setAlertSubscriptions(settings.alertSubscriptions);
     }
   }, [settings]);
 
@@ -151,6 +156,37 @@ export default function SettingsPage() {
       ...emailSettings,
       approverEmails: emailSettings.approverEmails.filter((e) => e !== email),
     });
+  };
+
+  const handleSaveAlertSubscriptions = () => {
+    updateSettings.mutate({
+      settings: { alertSubscriptions },
+    });
+  };
+
+  const handleAddSubscriber = () => {
+    const email = newSubscriberEmail.trim().toLowerCase();
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (isValidEmail && !alertSubscriptions.some((s) => s.email === email)) {
+      setAlertSubscriptions([...alertSubscriptions, { email, scenarios: [] }]);
+      setNewSubscriberEmail("");
+    }
+  };
+
+  const toggleSubscription = (email: string, scenario: AlertScenario) => {
+    setAlertSubscriptions(
+      alertSubscriptions.map((s) =>
+        s.email !== email
+          ? s
+          : {
+              ...s,
+              scenarios: s.scenarios.includes(scenario)
+                ? s.scenarios.filter((x) => x !== scenario)
+                : [...s.scenarios, scenario],
+            }
+      )
+    );
   };
 
   const handleAddBlackout = () => {
@@ -475,6 +511,115 @@ export default function SettingsPage() {
 
         <div className="flex justify-end">
           <Button onClick={handleSaveEmail} disabled={updateSettings.isPending}>
+            {updateSettings.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            <Save className="w-4 h-4" />
+            {t("common.saveChanges")}
+          </Button>
+        </div>
+      </div>
+
+      {/* Alert recipients by scenario */}
+      <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-amber-100 rounded-xl">
+            <Mail className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-900">{t("adminSettings.alertSubscriptions.title")}</h2>
+            <p className="text-sm text-zinc-500">{t("adminSettings.alertSubscriptions.description")}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          <Input
+            type="email"
+            value={newSubscriberEmail}
+            onChange={(e) => setNewSubscriberEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddSubscriber();
+              }
+            }}
+            placeholder={t("adminSettings.alertSubscriptions.placeholder")}
+            className="max-w-xs"
+          />
+          <Button type="button" onClick={handleAddSubscriber} disabled={!newSubscriberEmail.trim()}>
+            <Plus className="w-4 h-4" />
+            {t("adminSettings.alertSubscriptions.addEmail")}
+          </Button>
+        </div>
+
+        {alertSubscriptions.length > 0 ? (
+          <div className="overflow-x-auto mb-4 rounded-xl border border-zinc-200">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-50">
+                <tr>
+                  <th className="p-3 text-left font-medium text-zinc-700">
+                    {t("adminSettings.alertSubscriptions.recipient")}
+                  </th>
+                  {ALERT_SCENARIOS.map((scenario) => (
+                    <th
+                      key={scenario}
+                      className="p-3 text-center font-medium text-zinc-700 min-w-28"
+                      title={t(`adminSettings.alertSubscriptions.scenarioHints.${scenario}`)}
+                    >
+                      {t(`adminSettings.alertSubscriptions.scenarios.${scenario}`)}
+                    </th>
+                  ))}
+                  <th className="p-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {alertSubscriptions.map((subscription) => (
+                  <tr key={subscription.email} className="border-t border-zinc-200">
+                    <td className="p-3 text-zinc-800">{subscription.email}</td>
+                    {ALERT_SCENARIOS.map((scenario) => (
+                      <td key={scenario} className="p-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={subscription.scenarios.includes(scenario)}
+                          onChange={() => toggleSubscription(subscription.email, scenario)}
+                          aria-label={`${subscription.email} - ${t(`adminSettings.alertSubscriptions.scenarios.${scenario}`)}`}
+                          className="h-4 w-4 rounded border-zinc-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                        />
+                      </td>
+                    ))}
+                    <td className="p-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAlertSubscriptions(alertSubscriptions.filter((s) => s.email !== subscription.email))
+                        }
+                        className="text-zinc-400 hover:text-red-600 cursor-pointer"
+                        title={t("adminSettings.alertSubscriptions.remove")}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-zinc-500 mb-4">{t("adminSettings.alertSubscriptions.empty")}</p>
+        )}
+
+        <ul className="text-xs text-zinc-500 space-y-1 mb-3">
+          {ALERT_SCENARIOS.map((scenario) => (
+            <li key={scenario}>
+              <span className="font-medium text-zinc-700">
+                {t(`adminSettings.alertSubscriptions.scenarios.${scenario}`)}:
+              </span>{" "}
+              {t(`adminSettings.alertSubscriptions.scenarioHints.${scenario}`)}
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs text-zinc-400 mb-6">{t("adminSettings.alertSubscriptions.fallbackNote")}</p>
+
+        <div className="flex justify-end">
+          <Button onClick={handleSaveAlertSubscriptions} disabled={updateSettings.isPending}>
             {updateSettings.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
             <Save className="w-4 h-4" />
             {t("common.saveChanges")}

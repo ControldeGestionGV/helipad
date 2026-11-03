@@ -45,6 +45,9 @@ export const bookings = sqliteTable("bookings", {
   // Cancelada por el miembro con menos antelacion que settings.cancellationCutoff (Reglamento Art. 6.4).
   // Base para el conteo de cancelaciones tardias/no-show por periodo de membresia.
   lateCancellation: integer("late_cancellation", { mode: "boolean" }).notNull().default(false),
+  // Confirmada pero no se presento, marcada por el operador (Reglamento Art. 6.4). Cuenta junto
+  // con las cancelaciones tardias para la alerta de reiteracion.
+  noShow: integer("no_show", { mode: "boolean" }).notNull().default(false),
   // Excepciones al Reglamento al momento de reservar (JSON array de RuleWarning: fuera de horario,
   // aviso corto, etc.). No bloquean la reserva; quedan para que el operador las vea. Null = ninguna.
   ruleWarnings: text("rule_warnings", { mode: "json" }).$type<string[]>(),
@@ -173,6 +176,28 @@ export const memberUsageAlerts = sqliteTable("member_usage_alerts", {
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
+// Operacion no autorizada (Reglamento Art. 24.3): aterrizaje o despegue sin reserva confirmada o
+// fuera de la franja confirmada, registrado por el personal del helipuerto. Se registra el hecho,
+// no la calificacion. Las emergencias quedan registradas pero no cuentan ni generan alerta.
+export const unauthorizedOperations = sqliteTable("unauthorized_operations", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  occurredAt: integer("occurred_at", { mode: "timestamp" }).notNull(),
+  helicopterRegistration: text("helicopter_registration").notNull(),
+  pilotName: text("pilot_name"),
+  // "no_booking": sin reserva confirmada. "outside_slot": fuera de la franja de su reserva.
+  kind: text("kind", { enum: ["no_booking", "outside_slot"] }).notNull(),
+  // Reserva relacionada cuando la hay (operacion fuera de su franja)
+  bookingId: text("booking_id").references(() => bookings.id, { onDelete: "set null" }),
+  isEmergency: integer("is_emergency", { mode: "boolean" }).notNull().default(false),
+  description: text("description"),
+  // "open": pendiente de revision. "reviewed": revisada (advertencia o comunicacion decidida fuera de la app).
+  status: text("status", { enum: ["open", "reviewed"] }).notNull().default("open"),
+  reportedBy: text("reported_by").references(() => users.id),
+  reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+  reviewedBy: text("reviewed_by").references(() => users.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
 // Settings table (key-value store)
 export const settings = sqliteTable("settings", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -207,7 +232,7 @@ export const emailLogs = sqliteTable("email_logs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   bookingId: text("booking_id").references(() => bookings.id, { onDelete: "set null" }),
-  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset", "misuse_alert", "usage_overage_alert", "low_quota_notice"] }).notNull(),
+  type: text("type", { enum: ["confirmation", "cancellation", "reminder", "password_reset", "misuse_alert", "usage_overage_alert", "low_quota_notice", "rule_exception_alert", "late_cancellation_alert", "unauthorized_operation_alert", "booking_activity"] }).notNull(),
   status: text("status", { enum: ["sent", "failed"] }).notNull(),
   sentAt: integer("sent_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   error: text("error"),
@@ -317,6 +342,21 @@ export const misuseAlertsRelations = relations(misuseAlerts, ({ one }) => ({
   }),
 }));
 
+export const unauthorizedOperationsRelations = relations(unauthorizedOperations, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [unauthorizedOperations.bookingId],
+    references: [bookings.id],
+  }),
+  reportedByUser: one(users, {
+    fields: [unauthorizedOperations.reportedBy],
+    references: [users.id],
+  }),
+  reviewedByUser: one(users, {
+    fields: [unauthorizedOperations.reviewedBy],
+    references: [users.id],
+  }),
+}));
+
 export const memberUsageAlertsRelations = relations(memberUsageAlerts, ({ one }) => ({
   member: one(members, {
     fields: [memberUsageAlerts.memberId],
@@ -352,4 +392,5 @@ export type NewMisuseAlert = typeof misuseAlerts.$inferInsert;
 export type MemberUsageAlert = typeof memberUsageAlerts.$inferSelect;
 export type BookingCheckIn = typeof bookingCheckIns.$inferSelect;
 export type NewMemberUsageAlert = typeof memberUsageAlerts.$inferInsert;
+export type UnauthorizedOperation = typeof unauthorizedOperations.$inferSelect;
 

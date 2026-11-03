@@ -9,7 +9,7 @@ import {
   sendBookingConfirmation,
   sendBookingCancellation,
   sendPendingBookingApprovalEmail,
-  getApprovalRecipients,
+  getAlertRecipients,
 } from "@/server/services/email";
 import { createApprovalToken } from "@/lib/approval-tokens";
 import { checkMembershipForPassengers } from "@/server/services/membership";
@@ -17,6 +17,12 @@ import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
 import { checkAndTriggerUsageAlerts, getQuotaStatusForPassengers } from "@/server/services/usage-alerts";
 import { getBookingRules, getRuleWarnings, isLateCancellation } from "@/server/services/booking-rules";
 import { getAppUrl } from "@/server/app-url";
+import {
+  notifyBookingApproved,
+  notifyBookingCancelled,
+  notifyBookingCreated,
+  notifyLateCancellationOrNoShow,
+} from "@/server/services/compliance-alerts";
 import { historicalBookingInputSchema, type HistoricalBookingInput } from "@/lib/validations";
 import type { DbClient } from "@/server/db";
 
@@ -445,7 +451,7 @@ export const bookingsRouter = createTRPCRouter({
           locale: "es", // Default to Spanish, can be made dynamic later
         }).catch((err) => console.error("Failed to send confirmation email:", err));
       } else {
-        const recipients = await getApprovalRecipients();
+        const recipients = await getAlertRecipients("pending_approval");
 
         if (recipients.length > 0) {
           const appUrl = getAppUrl();
@@ -493,6 +499,11 @@ export const bookingsRouter = createTRPCRouter({
           ).catch((err) => console.error("Failed to send approval emails:", err));
         }
       }
+
+      // Team notifications by scenario: Reglamento exceptions and regular activity
+      await notifyBookingCreated(newBooking).catch((err) =>
+        console.error("Failed to send team notifications:", err)
+      );
 
       return newBooking;
     }),
@@ -781,7 +792,79 @@ export const bookingsRouter = createTRPCRouter({
         }).catch((err) => console.error("Failed to send cancellation email:", err));
       }
 
+      if (existing.status === "confirmed") {
+        await notifyBookingCancelled(cancelled).catch((err) =>
+          console.error("Failed to send team notifications:", err)
+        );
+      }
+
       return cancelled;
+    }),
+
+  /**
+   * Admin: mark a past confirmed booking as a no-show (Reglamento Art. 6.4), or undo it.
+   */
+  setNoShow: adminProcedure
+    .input(z.object({ id: z.string().uuid(), noShow: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.bookings.findFirst({ where: eq(bookings.id, input.id) });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
+      }
+      if (existing.status !== "confirmed" || existing.startTime > new Date()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only a confirmed booking whose time has passed can be marked as a no-show",
+        });
+      }
+
+      const [updated] = await ctx.db
+        .update(bookings)
+        .set({ noShow: input.noShow, updatedAt: new Date() })
+        .where(eq(bookings.id, input.id))
+        .returning();
+
+      if (input.noShow && !existing.noShow) {
+        await notifyLateCancellationOrNoShow(updated, "no_show").catch((err) =>
+          console.error("Failed to send no-show alert:", err)
+        );
+      }
+      return updated;
+    }),
+
+  /**
+   * Admin: the staff cancels on behalf of the clients, so an admin cancellation is not counted as
+   * late by itself. When the client asked for it, the staff marks it here (Reglamento Art. 6.4).
+   * Only a cancellation made within the cutoff before the booking can be marked.
+   */
+  setLateCancellation: adminProcedure
+    .input(z.object({ id: z.string().uuid(), lateCancellation: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.query.bookings.findFirst({ where: eq(bookings.id, input.id) });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
+      }
+      const { cancellationCutoff } = await getBookingRules(ctx.db);
+      const cutoff = new Date(existing.startTime.getTime() - cancellationCutoff * 60000);
+      if (existing.status !== "cancelled" || !existing.cancelledAt || existing.cancelledAt < cutoff) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only a booking cancelled within the cancellation cutoff can be marked as a late cancellation",
+        });
+      }
+
+      const [updated] = await ctx.db
+        .update(bookings)
+        .set({ lateCancellation: input.lateCancellation, updatedAt: new Date() })
+        .where(eq(bookings.id, input.id))
+        .returning();
+
+      if (input.lateCancellation && !existing.lateCancellation) {
+        await notifyLateCancellationOrNoShow(updated, "late_cancellation").catch((err) =>
+          console.error("Failed to send late cancellation alert:", err)
+        );
+      }
+      return updated;
     }),
 
   /**
@@ -841,6 +924,7 @@ export const bookingsRouter = createTRPCRouter({
           membershipStatus: bookings.membershipStatus,
           ruleWarnings: bookings.ruleWarnings,
           lateCancellation: bookings.lateCancellation,
+          noShow: bookings.noShow,
           createdAt: bookings.createdAt,
           cancelledAt: bookings.cancelledAt,
           user: {
@@ -974,6 +1058,10 @@ export const bookingsRouter = createTRPCRouter({
           locale: "es", // Default to Spanish, can be made dynamic later
         }).catch((err) => console.error("Failed to send confirmation email:", err));
       }
+
+      await notifyBookingApproved(approved).catch((err) =>
+        console.error("Failed to send team notifications:", err)
+      );
 
       return approved;
     }),

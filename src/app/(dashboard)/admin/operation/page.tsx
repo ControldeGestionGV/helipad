@@ -3,7 +3,22 @@
 import { useMemo } from "react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { AlertTriangle, CalendarClock, Check, Clock, Phone, Plane, RefreshCw, User, Users, X } from "lucide-react";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  CalendarClock,
+  Check,
+  Clock,
+  Phone,
+  Plane,
+  RefreshCw,
+  ShieldAlert,
+  User,
+  Users,
+  UserX,
+  X,
+} from "lucide-react";
+import { ROUTES } from "@/lib/constants";
 import { trpc } from "@/lib/trpc";
 import { useSession } from "@/lib/auth-client";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +35,7 @@ export default function AdminOperationPage() {
   const end = endOfDay(today);
   const utils = trpc.useUtils();
 
+  const { data: settings } = trpc.settings.getAll.useQuery();
   const { data, isLoading, refetch } = trpc.bookings.listAll.useQuery({
     startDate: start.toISOString(),
     endDate: end.toISOString(),
@@ -63,6 +79,24 @@ export default function AdminOperationPage() {
     },
   });
 
+  // Reglamento Art. 6.4: the staff records no-shows and late cancellations requested by the client
+  const setNoShow = trpc.bookings.setNoShow.useMutation({
+    onSuccess: () => utils.bookings.listAll.invalidate(),
+    onError: (error) => {
+      toast({ type: "error", title: "No se pudo marcar", description: error.message });
+    },
+  });
+
+  const setLateCancellation = trpc.bookings.setLateCancellation.useMutation({
+    onSuccess: () => utils.bookings.listAll.invalidate(),
+    onError: (error) => {
+      toast({ type: "error", title: "No se pudo marcar", description: error.message });
+    },
+  });
+
+  const cancellationCutoff = settings?.cancellationCutoff ?? 10;
+  const now = new Date();
+
   const bookings = (data?.bookings ?? []).sort(
     (a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime()
   );
@@ -83,10 +117,18 @@ export default function AdminOperationPage() {
             Reservas del {format(today, "EEEE, d 'de' MMMM", { locale: es })}
           </p>
         </div>
-        <Button variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="w-4 h-4" />
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`${ROUTES.adminAlerts}?tab=unauthorized`}>
+              <ShieldAlert className="w-4 h-4" />
+              Operacion sin reserva
+            </Link>
+          </Button>
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -159,6 +201,7 @@ export default function AdminOperationPage() {
                     <RuleWarningBadges
                       ruleWarnings={booking.ruleWarnings}
                       lateCancellation={booking.lateCancellation}
+                      noShow={booking.noShow}
                     />
                   </div>
 
@@ -217,6 +260,41 @@ export default function AdminOperationPage() {
                     </Button>
                   </div>
                 )}
+
+                {!isReadOnly &&
+                  booking.status === "confirmed" &&
+                  new Date(booking.startTime!) <= now && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => setNoShow.mutate({ id: booking.id, noShow: !booking.noShow })}
+                      disabled={setNoShow.isPending}
+                    >
+                      <UserX className="h-4 w-4" />
+                      {booking.noShow ? "Quitar inasistencia" : "No se presento"}
+                    </Button>
+                  )}
+
+                {!isReadOnly &&
+                  booking.status === "cancelled" &&
+                  booking.cancelledAt &&
+                  new Date(booking.cancelledAt).getTime() >=
+                    new Date(booking.startTime!).getTime() - cancellationCutoff * 60000 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      title="Cancelada dentro del plazo minimo, a solicitud del cliente (Art. 6.4)"
+                      onClick={() =>
+                        setLateCancellation.mutate({ id: booking.id, lateCancellation: !booking.lateCancellation })
+                      }
+                      disabled={setLateCancellation.isPending}
+                    >
+                      <Clock className="h-4 w-4" />
+                      {booking.lateCancellation ? "Quitar cancelacion tardia" : "Cancelacion tardia del cliente"}
+                    </Button>
+                  )}
               </div>
             </div>
           ))}

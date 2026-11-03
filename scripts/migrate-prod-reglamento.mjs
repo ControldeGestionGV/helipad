@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Applies migrations 0012-0019 (member groups, usage alerts, Reglamento v2, QR access control,
- * per-member/family usage quotas, member photos)
+ * Applies migrations 0012-0020 (member groups, usage alerts, Reglamento v2, QR access control,
+ * per-member/family usage quotas, member photos, compliance alerts)
  * to the production Turso database, safely:
  *
  *   1. Backs up every table to backups/turso-<timestamp>.json (local file, gitignored).
@@ -64,6 +64,7 @@ const MIGRATIONS = [
   { file: "0017_add_member_usage_limits.sql", applied: async () => (await columns("members")).includes("annual_usage_limit") },
   { file: "0018_add_member_photos.sql", applied: async (t) => t.includes("member_photos") },
   { file: "0019_quota_notices_and_contact_email.sql", applied: async () => (await columns("members")).includes("contact_email") },
+  { file: "0020_add_compliance_alerts.sql", applied: async (t) => t.includes("unauthorized_operations") },
 ];
 
 async function main() {

@@ -419,7 +419,7 @@
 
   "adminAlerts": {
     "title": "Alerts",
-    "description": "Helipad misuse and membership quotas (running low or used up)",
+    "description": "Helipad misuse, membership quotas and operations without booking",
     "tabMisuse": "Misuse",
     "tabUsageOverage": "Membership Quota",
     "noAlerts": "No open alerts",
@@ -444,6 +444,26 @@
         "count": "Uses this period",
         "period": "Membership period"
       }
+    },
+    "tabUnauthorized": "Operations Without Booking",
+    "unauthorized": {
+      "intro": "Landing or takeoff without a confirmed booking or outside its slot (Art. 24.3). Record the fact, not a qualification. An emergency is not an infraction: it stays on record but raises no alert.",
+      "register": "Record operation",
+      "occurredAt": "Date and time",
+      "registration": "Registration",
+      "pilotName": "Pilot (optional)",
+      "kind": "Type",
+      "kindNoBooking": "No confirmed booking",
+      "kindOutsideSlot": "Outside its booking slot",
+      "isEmergency": "It was an emergency (medical, evacuation or security)",
+      "description": "What happened (optional)",
+      "save": "Record",
+      "cancel": "Cancel",
+      "saved": "Operation recorded",
+      "emergencyBadge": "Emergency",
+      "reportedBy": "Recorded by",
+      "markReviewed": "Mark as reviewed",
+      "empty": "No operations without booking recorded"
     }
   },
 
@@ -533,6 +553,34 @@
       "maxBookingDuration": "Slot Duration (landing to takeoff)",
       "minAdvanceNotice": "Min. Advance Notice",
       "cancellationCutoff": "Penalty-free Cancellation (notice)"
+    },
+    "alertSubscriptions": {
+      "title": "Recipients by Scenario",
+      "description": "Each person chooses which scenarios they are notified about.",
+      "placeholder": "email@example.com",
+      "addEmail": "Add",
+      "recipient": "Recipient",
+      "remove": "Remove",
+      "empty": "Nobody subscribed yet.",
+      "fallbackNote": "A scenario nobody subscribed to goes to the approval emails above, except \"Regular activity\", which only reaches those who check it.",
+      "scenarios": {
+        "pending_approval": "Booking to approve",
+        "booking_activity": "Regular activity",
+        "rule_exception": "Reglamento exceptions",
+        "late_cancellation": "Late cancellation or no-show",
+        "unauthorized_operation": "Operation without booking",
+        "membership_quota": "Membership quota",
+        "misuse": "Misuse"
+      },
+      "scenarioHints": {
+        "pending_approval": "No titular aboard or quota used up",
+        "booking_activity": "Every confirmed or cancelled booking",
+        "rule_exception": "Outside hours, short notice, long slot, blackout date (Art. 5.1, 6.1, 19.1)",
+        "late_cancellation": "And repeats: 3 or more in 12 months (Art. 6.4)",
+        "unauthorized_operation": "No booking or outside slot, not an emergency (Art. 24.3)",
+        "membership_quota": "5 operations left or used up (Contract 2.4)",
+        "misuse": "Recurring aircraft with no titular aboard"
+      }
     },
     "membershipUsage": {
       "lowQuotaThresholdHint": "Remaining operations at which the member and the operator are notified (Contract 2.4: 5).",
@@ -664,7 +712,8 @@
     "short_notice": "Short notice",
     "blackout_date": "Blackout date",
     "long_duration": "Extended slot",
-    "late_cancellation": "Late cancellation"
+    "late_cancellation": "Late cancellation",
+    "no_show": "No-show"
   },
 
   "checkIn": {

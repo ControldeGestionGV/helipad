@@ -7,13 +7,14 @@ import { useTranslations } from "@/hooks/use-translations";
 interface RuleWarningBadgesProps {
   ruleWarnings?: string[] | null;
   lateCancellation?: boolean | null;
+  noShow?: boolean | null;
 }
 
 /** Excepciones al Reglamento registradas en la reserva. Informativas, no bloquean nada. */
-export function RuleWarningBadges({ ruleWarnings, lateCancellation }: RuleWarningBadgesProps) {
+export function RuleWarningBadges({ ruleWarnings, lateCancellation, noShow }: RuleWarningBadgesProps) {
   const { t } = useTranslations();
 
-  if (!ruleWarnings?.length && !lateCancellation) return null;
+  if (!ruleWarnings?.length && !lateCancellation && !noShow) return null;
 
   return (
     <>
@@ -27,6 +28,12 @@ export function RuleWarningBadges({ ruleWarnings, lateCancellation }: RuleWarnin
         <Badge variant="warning">
           <AlertTriangle className="w-3 h-3 mr-1" />
           {t("ruleWarnings.late_cancellation")}
+        </Badge>
+      )}
+      {noShow && (
+        <Badge variant="warning">
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          {t("ruleWarnings.no_show")}
         </Badge>
       )}
     </>

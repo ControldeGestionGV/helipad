@@ -1,13 +1,15 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { db } from "@/server/db";
-import { emailLogs, emailConfigurations, settings as settingsTable, users } from "@/server/db/schema";
-import { and, eq } from "drizzle-orm";
+import { emailLogs, emailConfigurations, settings as settingsTable, users, type EmailLog } from "@/server/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
+import type { AlertScenario, AlertSubscription } from "@/lib/alert-scenarios";
 import { defaultSettings } from "@/server/api/routers/settings";
 import { GraphMailer } from "@/lib/email/graphMailer";
 import type { IMailer } from "@/lib/email/types";
 import { ensureAccessCode } from "@/server/services/access-control";
 import { getAppUrl } from "@/server/app-url";
+import { HELIPAD_TIMEZONE } from "@/server/services/booking-rules";
 import enTranslations from "@/lib/translations/en.json";
 import esTranslations from "@/lib/translations/es.json";
 
@@ -188,7 +190,38 @@ interface SendEmailOptions {
   html: string;
   userId?: string;
   bookingId?: string;
-  type: "confirmation" | "cancellation" | "reminder" | "password_reset" | "misuse_alert" | "usage_overage_alert" | "low_quota_notice";
+  type: EmailLog["type"];
+}
+
+// Opt-in only: one email per booking would flood the default recipients
+const OPT_IN_ONLY_SCENARIOS: AlertScenario[] = ["booking_activity"];
+
+/**
+ * Resolve who receives a team notification: the people subscribed to that scenario
+ * (settings.alertSubscriptions). A scenario nobody subscribed to falls back to
+ * getApprovalRecipients(), except the opt-in-only ones, so no compliance alert is lost.
+ */
+export async function getAlertRecipients(scenario: AlertScenario): Promise<string[]> {
+  const rows = await db.query.settings.findMany({
+    where: inArray(settingsTable.key, ["emailNotifications", "alertSubscriptions"]),
+  });
+  const read = (key: string) => {
+    const row = rows.find((r) => r.key === key);
+    return row ? JSON.parse(row.value) : undefined;
+  };
+
+  const notificationConfig = { ...defaultSettings.emailNotifications, ...read("emailNotifications") };
+  if (!notificationConfig.adminNotificationsEnabled) {
+    return [];
+  }
+
+  const subscriptions: AlertSubscription[] = read("alertSubscriptions") ?? defaultSettings.alertSubscriptions;
+  const subscribed = subscriptions.filter((s) => s.scenarios.includes(scenario)).map((s) => s.email);
+
+  if (subscribed.length > 0 || OPT_IN_ONLY_SCENARIOS.includes(scenario)) {
+    return subscribed;
+  }
+  return getApprovalRecipients();
 }
 
 /**
@@ -490,7 +523,7 @@ interface MisuseAlertData {
 }
 
 export async function sendMisuseAlertEmail(data: MisuseAlertData): Promise<boolean> {
-  const recipients = await getApprovalRecipients();
+  const recipients = await getAlertRecipients("misuse");
 
   if (recipients.length === 0) {
     return false;
@@ -560,7 +593,7 @@ interface UsageQuotaAlertData {
  * billing; once used up, the membership's new bookings go to pending approval.
  */
 export async function sendUsageQuotaEmail(data: UsageQuotaAlertData): Promise<boolean> {
-  const recipients = await getApprovalRecipients();
+  const recipients = await getAlertRecipients("membership_quota");
 
   if (recipients.length === 0) {
     return false;
@@ -815,4 +848,206 @@ export async function sendBookingReminder(data: BookingEmailData): Promise<boole
     bookingId: data.bookingId,
     type: "reminder",
   });
+}
+
+// ---------- Team notifications by scenario (settings.alertSubscriptions) ----------
+
+/** Date and time in the helipad's local time (the server runs in UTC). */
+function formatHelipadDateTime(date: Date): string {
+  return new Intl.DateTimeFormat("es-DO", {
+    timeZone: HELIPAD_TIMEZONE,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function detailsTable(rows: Array<[string, string | null | undefined]>): string {
+  const cells = rows
+    .filter(([, value]) => value)
+    .map(
+      ([label, value]) => `
+        <tr>
+          <td style="padding: 6px 0; color: #71717a; font-size: 14px; width: 40%;">${label}</td>
+          <td style="padding: 6px 0; color: #18181b; font-size: 14px; font-weight: 600;">${escapeHtml(value!)}</td>
+        </tr>`
+    )
+    .join("");
+  return `
+    <div style="background-color: #f4f4f5; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">${cells}</table>
+    </div>`;
+}
+
+function actionButton(path: string, label: string): string {
+  return `
+    <a href="${appUrl()}${path}" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+      ${label}
+    </a>`;
+}
+
+async function sendTeamAlert(
+  scenario: AlertScenario,
+  type: EmailLog["type"],
+  subject: string,
+  content: string,
+  bookingId?: string
+): Promise<boolean> {
+  const recipients = await getAlertRecipients(scenario);
+  if (recipients.length === 0) {
+    return false;
+  }
+  const results = await Promise.all(
+    recipients.map((to) => sendEmail({ to, subject, html: baseTemplate(content), bookingId, type }))
+  );
+  return results.some(Boolean);
+}
+
+/** Booking facts shared by the booking-based team notifications. */
+export interface TeamBookingData {
+  bookingId: string;
+  startTime: Date;
+  helicopterRegistration: string | null;
+  pilotName: string | null;
+  requester: string;
+  purpose: string;
+}
+
+function bookingRows(data: TeamBookingData): Array<[string, string | null | undefined]> {
+  return [
+    ["Fecha y hora", formatHelipadDateTime(data.startTime)],
+    ["Matricula", data.helicopterRegistration],
+    ["Piloto", data.pilotName],
+    ["Registrada por", data.requester],
+    ["Proposito", data.purpose],
+  ];
+}
+
+/** Reglamento Art. 5.1, 6.1 and 19.1: a booking was made with exceptions (not blocked). */
+export async function sendRuleExceptionEmail(
+  data: TeamBookingData & { warnings: string[]; status: "pending" | "confirmed" }
+): Promise<boolean> {
+  const labels = data.warnings.map((w) => t(`ruleWarnings.${w}`, "es")).join(", ");
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Reserva con excepciones al Reglamento</h2>
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      Se registro una reserva ${data.status === "confirmed" ? "confirmada" : "pendiente de aprobacion"} con las
+      siguientes excepciones: <strong>${escapeHtml(labels)}</strong>. La reserva no se bloquea; queda
+      registrada para su seguimiento.
+    </p>
+    ${detailsTable(bookingRows(data))}
+    ${actionButton("/admin/bookings", "Ver reservas")}
+  `;
+  return sendTeamAlert(
+    "rule_exception",
+    "rule_exception_alert",
+    `Reserva con excepciones - ${labels}`,
+    content,
+    data.bookingId
+  );
+}
+
+/**
+ * Reglamento Art. 6.4: late cancellation or no-show. `count` = late cancellations + no-shows of
+ * the same aircraft in the last 12 months, this one included; from `repeatThreshold` on it is
+ * "reiterada".
+ */
+export async function sendLateCancellationEmail(
+  data: TeamBookingData & { kind: "late_cancellation" | "no_show"; count: number; repeatThreshold: number }
+): Promise<boolean> {
+  const what = data.kind === "no_show" ? "Inasistencia a una reserva" : "Cancelacion tardia";
+  const repeated = data.count >= data.repeatThreshold;
+  const fact =
+    data.kind === "no_show"
+      ? "El personal del helipuerto registro que la reserva confirmada no se presento."
+      : "La reserva confirmada se cancelo con menos antelacion que la permitida por el Art. 6.4 del Reglamento.";
+  const countText = data.helicopterRegistration
+    ? ` La matricula <strong>${escapeHtml(data.helicopterRegistration)}</strong> suma
+      <strong>${data.count}</strong> cancelaciones tardias o inasistencias en los ultimos 12 meses.`
+    : "";
+  const repeatedText = repeated
+    ? ` Con ${data.repeatThreshold} o mas en un mismo periodo, el Art. 6.4 faculta a aplicar las medidas del
+      Capitulo VIII.`
+    : "";
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${what}${repeated ? " (reiterada)" : ""}</h2>
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">${fact}${countText}${repeatedText}</p>
+    ${detailsTable(bookingRows(data))}
+    ${actionButton("/admin/bookings", "Ver reservas")}
+  `;
+  return sendTeamAlert(
+    "late_cancellation",
+    "late_cancellation_alert",
+    `${what}${repeated ? " (reiterada)" : ""} - ${data.helicopterRegistration ?? formatHelipadDateTime(data.startTime)}`,
+    content,
+    data.bookingId
+  );
+}
+
+/**
+ * Reglamento Art. 24.3. Reports the fact, never a qualification: whether it is an infraction,
+ * the warning to the member and any communication to the IDAC are decided by a person.
+ */
+export async function sendUnauthorizedOperationEmail(data: {
+  occurredAt: Date;
+  helicopterRegistration: string;
+  pilotName: string | null;
+  kind: "no_booking" | "outside_slot";
+  description: string | null;
+  reportedBy: string;
+  priorCount: number;
+}): Promise<boolean> {
+  const fact =
+    data.kind === "no_booking" ? "sin reserva confirmada" : "fuera de la franja horaria de su reserva confirmada";
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Operacion sin reserva registrada</h2>
+    <p style="margin: 0 0 16px; color: #52525b; font-size: 16px; line-height: 1.6;">
+      El personal del helipuerto registro una operacion de la aeronave
+      <strong>${escapeHtml(data.helicopterRegistration)}</strong> ${fact}. El registro indica que no se trato
+      de una emergencia.
+    </p>
+    ${detailsTable([
+      ["Fecha y hora", formatHelipadDateTime(data.occurredAt)],
+      ["Matricula", data.helicopterRegistration],
+      ["Piloto", data.pilotName],
+      ["Descripcion", data.description],
+      ["Registrado por", data.reportedBy],
+      ["Registros previos de esta matricula", String(data.priorCount)],
+    ])}
+    <p style="margin: 0 0 24px; color: #52525b; font-size: 14px; line-height: 1.6;">
+      Art. 24.3 del Reglamento: ante la primera operacion no autorizada corresponde una advertencia escrita al
+      miembro, con copia al operador aereo y al piloto al mando; en caso de reincidencia, el operador puede poner
+      el hecho en conocimiento del IDAC. Toda comunicacion debe reportar el hecho, sin calificarlo como infraccion.
+    </p>
+    ${actionButton("/admin/alerts", "Revisar registro")}
+  `;
+  return sendTeamAlert(
+    "unauthorized_operation",
+    "unauthorized_operation_alert",
+    `Operacion sin reserva - ${data.helicopterRegistration}`,
+    content
+  );
+}
+
+/** Regular use of the helipad: a booking was confirmed or cancelled. Opt-in only. */
+export async function sendBookingActivityEmail(
+  data: TeamBookingData & { action: "confirmed" | "cancelled" }
+): Promise<boolean> {
+  const title = data.action === "confirmed" ? "Reserva confirmada" : "Reserva cancelada";
+  const content = `
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${title}</h2>
+    ${detailsTable(bookingRows(data))}
+    ${actionButton("/admin/operation", "Ver operacion del dia")}
+  `;
+  const subjectParts = [title, data.helicopterRegistration, formatHelipadDateTime(data.startTime)];
+  return sendTeamAlert(
+    "booking_activity",
+    "booking_activity",
+    subjectParts.filter(Boolean).join(" - "),
+    content,
+    data.bookingId
+  );
 }

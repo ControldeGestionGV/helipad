@@ -419,7 +419,7 @@
 
   "adminAlerts": {
     "title": "Alertas",
-    "description": "Uso indebido del helipuerto y cupos de membresía (pocas operaciones o agotado)",
+    "description": "Uso indebido del helipuerto, cupos de membresía y operaciones sin reserva",
     "tabMisuse": "Uso Indebido",
     "tabUsageOverage": "Cupo de Membresía",
     "noAlerts": "No hay alertas abiertas",
@@ -444,6 +444,26 @@
         "count": "Usos en el período",
         "period": "Período de membresía"
       }
+    },
+    "tabUnauthorized": "Operaciones sin Reserva",
+    "unauthorized": {
+      "intro": "Aterrizaje o despegue sin reserva confirmada o fuera de su franja (Art. 24.3). Se registra el hecho, no la calificación. Una emergencia no es infracción: queda registrada pero no genera alerta.",
+      "register": "Registrar operación",
+      "occurredAt": "Fecha y hora",
+      "registration": "Matrícula",
+      "pilotName": "Piloto (opcional)",
+      "kind": "Tipo",
+      "kindNoBooking": "Sin reserva confirmada",
+      "kindOutsideSlot": "Fuera de la franja de su reserva",
+      "isEmergency": "Fue una emergencia (médica, evacuación o seguridad)",
+      "description": "Descripción de los hechos (opcional)",
+      "save": "Registrar",
+      "cancel": "Cancelar",
+      "saved": "Operación registrada",
+      "emergencyBadge": "Emergencia",
+      "reportedBy": "Registrado por",
+      "markReviewed": "Marcar como revisada",
+      "empty": "No hay operaciones sin reserva registradas"
     }
   },
 
@@ -534,6 +554,34 @@
       "maxBookingDuration": "Duración de la Franja (aterrizaje a despegue)",
       "minAdvanceNotice": "Anticipación Mínima",
       "cancellationCutoff": "Cancelación sin Penalidad (antelación)"
+    },
+    "alertSubscriptions": {
+      "title": "Destinatarios por Escenario",
+      "description": "Cada persona elige en qué escenarios recibe notificación.",
+      "placeholder": "correo@ejemplo.com",
+      "addEmail": "Agregar",
+      "recipient": "Destinatario",
+      "remove": "Quitar",
+      "empty": "Nadie suscrito todavía.",
+      "fallbackNote": "Un escenario sin suscriptores se envía a los correos de aprobación de arriba, salvo «Actividad regular», que solo llega a quien la marque.",
+      "scenarios": {
+        "pending_approval": "Reserva por aprobar",
+        "booking_activity": "Actividad regular",
+        "rule_exception": "Excepciones al Reglamento",
+        "late_cancellation": "Cancelación tardía o inasistencia",
+        "unauthorized_operation": "Operación sin reserva",
+        "membership_quota": "Cupo de membresía",
+        "misuse": "Uso indebido"
+      },
+      "scenarioHints": {
+        "pending_approval": "Sin titular a bordo o cupo agotado",
+        "booking_activity": "Cada reserva confirmada o cancelada",
+        "rule_exception": "Fuera de horario, aviso corto, franja larga, día bloqueado (Art. 5.1, 6.1, 19.1)",
+        "late_cancellation": "Y su reiteración: 3 o más en 12 meses (Art. 6.4)",
+        "unauthorized_operation": "Sin reserva o fuera de franja, sin emergencia (Art. 24.3)",
+        "membership_quota": "Quedan 5 operaciones o se agotaron (Contrato 2.4)",
+        "misuse": "Matrícula recurrente sin titular a bordo"
+      }
     },
     "membershipUsage": {
       "lowQuotaThresholdHint": "Operaciones restantes para avisar al miembro y al operador (Contrato 2.4: 5).",
@@ -665,7 +713,8 @@
     "short_notice": "Aviso con poca antelación",
     "blackout_date": "Día bloqueado",
     "long_duration": "Franja extendida",
-    "late_cancellation": "Cancelación tardía"
+    "late_cancellation": "Cancelación tardía",
+    "no_show": "No se presentó"
   },
 
   "checkIn": {

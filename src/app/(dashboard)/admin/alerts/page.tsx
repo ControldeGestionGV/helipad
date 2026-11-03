@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useSession } from "@/lib/auth-client";
@@ -10,13 +11,32 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { cn, formatDate } from "@/lib/utils";
+import { UnauthorizedOperationsPanel } from "@/components/admin/unauthorized-operations-panel";
 
 export default function AlertsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-12">
+          <Spinner size="lg" />
+        </div>
+      }
+    >
+      <AlertsContent />
+    </Suspense>
+  );
+}
+
+function AlertsContent() {
   const { t } = useTranslations();
   const { data: session } = useSession();
   const isReadOnly = session?.user?.role === "security";
 
-  const [tab, setTab] = useState<"misuse" | "usageOverage">("misuse");
+  // Link from "Operacion de hoy" (/admin/alerts?tab=unauthorized) opens the Art. 24.3 tab
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<"misuse" | "usageOverage" | "unauthorized">(() =>
+    searchParams.get("tab") === "unauthorized" ? "unauthorized" : "misuse"
+  );
 
   const utils = trpc.useUtils();
 
@@ -50,7 +70,7 @@ export default function AlertsPage() {
       </div>
 
       <div className="flex gap-1 border-b border-zinc-200">
-        {(["misuse", "usageOverage"] as const).map((key) => (
+        {(["misuse", "usageOverage", "unauthorized"] as const).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -61,12 +81,18 @@ export default function AlertsPage() {
                 : "border-transparent text-zinc-500 hover:text-zinc-900"
             )}
           >
-            {key === "misuse" ? t("adminAlerts.tabMisuse") : t("adminAlerts.tabUsageOverage")}
+            {key === "misuse"
+              ? t("adminAlerts.tabMisuse")
+              : key === "usageOverage"
+              ? t("adminAlerts.tabUsageOverage")
+              : t("adminAlerts.tabUnauthorized")}
           </button>
         ))}
       </div>
 
-      {tab === "misuse" ? (
+      {tab === "unauthorized" ? (
+        <UnauthorizedOperationsPanel canReview={!isReadOnly} />
+      ) : tab === "misuse" ? (
         isMisuseLoading ? (
           <div className="flex items-center justify-center py-12">
             <Spinner size="lg" />

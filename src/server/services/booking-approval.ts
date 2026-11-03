@@ -5,6 +5,7 @@ import { bookings } from "@/server/db/schema";
 import { broadcastBookingCancelled, broadcastBookingCreated } from "@/server/services/sse";
 import { sendBookingCancellation, sendBookingConfirmation } from "@/server/services/email";
 import { checkAndTriggerMisuseAlert } from "@/server/services/misuse-alerts";
+import { notifyBookingApproved } from "@/server/services/compliance-alerts";
 
 export async function approveBookingById(bookingId: string) {
   const existing = await db.query.bookings.findFirst({
@@ -97,6 +98,10 @@ export async function approveBookingById(bookingId: string) {
       locale: "es",
     }).catch((err) => console.error("Failed to send confirmation email:", err));
   }
+
+  await notifyBookingApproved(approved).catch((err) =>
+    console.error("Failed to send team notifications:", err)
+  );
 
   return { ok: true as const, message: "Reserva aprobada correctamente." };
 }

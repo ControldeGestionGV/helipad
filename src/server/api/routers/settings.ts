@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, adminProcedure } from "../trpc";
 import { settings } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
+import type { AlertSubscription } from "@/lib/alert-scenarios";
 
 // Default settings values
 export const defaultSettings = {
@@ -28,6 +29,9 @@ export const defaultSettings = {
     // billing: once the quota is used up, the membership's right to book ceases.
     lowQuotaThreshold: 5,
   },
+  // Who receives each team notification. A scenario nobody subscribed to falls back to
+  // emailNotifications.approverEmails (see getAlertRecipients), so no alert is lost.
+  alertSubscriptions: [] as AlertSubscription[],
 };
 
 export type AppSettings = typeof defaultSettings;
