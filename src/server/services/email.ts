@@ -349,8 +349,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
 }
 
 // Email template helpers
-// Name shown in the emails: the sender name, so header, footer and "From" match.
-const EMAIL_BRAND = process.env.EMAIL_FROM_NAME || "Helipuerto WTC";
+// Name shown under the logo and in the footer. Fixed on purpose: the sender name varies by environment.
+const EMAIL_BRAND = "Helipad";
 // Solid colors only: Outlook ignores CSS gradients, which left white text on a white header.
 const BRAND_NAVY = "#001D41";
 
