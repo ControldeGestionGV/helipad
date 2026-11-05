@@ -349,6 +349,11 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
 }
 
 // Email template helpers
+// Name shown in the emails: the sender name, so header, footer and "From" match.
+const EMAIL_BRAND = process.env.EMAIL_FROM_NAME || "Helipuerto WTC";
+// Solid colors only: Outlook ignores CSS gradients, which left white text on a white header.
+const BRAND_NAVY = "#001D41";
+
 function baseTemplate(content: string): string {
   return `
 <!DOCTYPE html>
@@ -356,18 +361,22 @@ function baseTemplate(content: string): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${APP_NAME}</title>
+  <title>${EMAIL_BRAND}</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f4f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f4f5" style="background-color: #f4f4f5; padding: 40px 20px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+        <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e4e4e7;">
           <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); padding: 32px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700;">🚁 ${APP_NAME}</h1>
+            <td align="center" bgcolor="#ffffff" style="background-color: #ffffff; padding: 28px 32px 20px; text-align: center;">
+              <img src="${appUrl()}/images/email-logo.png" width="240" height="35" alt="World Trade Center Santo Domingo" style="display: block; margin: 0 auto; border: 0; width: 240px; height: auto;" />
+              <p style="margin: 14px 0 0; color: ${BRAND_NAVY}; font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;">${EMAIL_BRAND}</p>
             </td>
+          </tr>
+          <tr>
+            <td bgcolor="${BRAND_NAVY}" style="background-color: ${BRAND_NAVY}; height: 4px; line-height: 4px; font-size: 0;">&nbsp;</td>
           </tr>
           <!-- Content -->
           <tr>
@@ -377,9 +386,9 @@ function baseTemplate(content: string): string {
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e4e4e7;">
-              <p style="margin: 0; color: #71717a; font-size: 14px;">
-                ${APP_NAME} • <a href="${appUrl()}" style="color: #3f3f46; text-decoration: none;">Visit Dashboard</a>
+            <td bgcolor="#f9fafb" style="background-color: #f9fafb; padding: 24px 32px; text-align: center; border-top: 1px solid #e4e4e7;">
+              <p style="margin: 0; color: #71717a; font-size: 13px;">
+                ${EMAIL_BRAND} · <a href="${appUrl()}" style="color: ${BRAND_NAVY}; text-decoration: none; font-weight: 600;">Ir a la aplicación</a>
               </p>
             </td>
           </tr>
@@ -454,7 +463,7 @@ export async function sendPendingBookingApprovalEmail(data: PendingBookingApprov
   const content = `
     <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Nueva reserva pendiente</h2>
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
-      Hay una nueva solicitud de reserva del helipuerto esperando aprobacion.
+      Hay una nueva solicitud de reserva del helipuerto esperando aprobación.
     </p>
     ${
       data.reason
@@ -477,7 +486,7 @@ export async function sendPendingBookingApprovalEmail(data: PendingBookingApprov
           <td style="padding: 8px 0; color: #18181b; font-size: 14px; font-weight: 600;">${escapeHtml(data.startTime)} - ${escapeHtml(data.endTime)}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Matricula</td>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Matrícula</td>
           <td style="padding: 8px 0; color: #18181b; font-size: 14px; font-weight: 600;">${escapeHtml(data.helicopterRegistration || "-")}</td>
         </tr>
         <tr>
@@ -485,7 +494,7 @@ export async function sendPendingBookingApprovalEmail(data: PendingBookingApprov
           <td style="padding: 8px 0; color: #18181b; font-size: 14px;">${escapeHtml(data.contactPhone || "-")}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Proposito</td>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">Propósito</td>
           <td style="padding: 8px 0; color: #18181b; font-size: 14px;">${escapeHtml(data.purpose)}</td>
         </tr>
       </table>
@@ -530,18 +539,18 @@ export async function sendMisuseAlertEmail(data: MisuseAlertData): Promise<boole
   }
 
   const content = `
-    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Alerta de uso indebido 🚨</h2>
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Alerta de uso indebido</h2>
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
-      La aeronave con matricula <strong>${escapeHtml(data.helicopterRegistration)}</strong> ha aterrizado
-      <strong>${data.triggerCount} veces</strong> en los ultimos 6 meses sin ningun titular de membresia
+      La aeronave con matrícula <strong>${escapeHtml(data.helicopterRegistration)}</strong> ha aterrizado
+      <strong>${data.triggerCount} veces</strong> en los últimos 6 meses sin ningún titular de membresía
       (ni VIP) a bordo. Esto puede indicar que se esta prestando la aeronave, o que se esta evadiendo
-      la exigencia de membresia.
+      la exigencia de membresía.
     </p>
 
     <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <td style="padding: 8px 0; color: #991b1b; font-size: 14px;">Matricula</td>
+          <td style="padding: 8px 0; color: #991b1b; font-size: 14px;">Matrícula</td>
           <td style="padding: 8px 0; color: #7f1d1d; font-size: 14px; font-weight: 600;">${escapeHtml(data.helicopterRegistration)}</td>
         </tr>
         <tr>
@@ -559,7 +568,7 @@ export async function sendMisuseAlertEmail(data: MisuseAlertData): Promise<boole
       Esta es una notificacion informativa; no bloquea reservas futuras de esta aeronave.
     </p>
 
-    <a href="${appUrl()}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/admin/alerts" style="display: inline-block; background-color: #001D41; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       Ver alertas
     </a>
   `;
@@ -601,13 +610,13 @@ export async function sendUsageQuotaEmail(data: UsageQuotaAlertData): Promise<bo
 
   const remaining = Math.max(data.annualUsageLimit - data.usageCount, 0);
   const isExhausted = data.kind === "exhausted";
-  const title = isExhausted ? "Cupo de membresia agotado" : "Quedan pocas operaciones";
+  const title = isExhausted ? "Cupo de membresía agotado" : "Quedan pocas operaciones";
   const summary = isExhausted
-    ? `ha usado <strong>${data.usageCount} de ${data.annualUsageLimit} operaciones</strong> de su periodo de membresia.
-      Conforme a la clausula 2.4 del Contrato, cesa su derecho a solicitar nuevas reservas: las reservas
-      nuevas de esta membresia quedaran <strong>pendientes de aprobacion</strong> hasta que se firme una nueva membresia.`
-    : `le quedan <strong>${remaining} operaciones</strong> de ${data.annualUsageLimit} en su periodo de membresia.
-      Conforme a la clausula 2.4 del Contrato, corresponde comunicarle si desea gestionar una nueva membresia.`;
+    ? `ha usado <strong>${data.usageCount} de ${data.annualUsageLimit} operaciones</strong> de su período de membresía.
+      Conforme a la cláusula 2.4 del Contrato, cesa su derecho a solicitar nuevas reservas: las reservas
+      nuevas de esta membresía quedarán <strong>pendientes de aprobación</strong> hasta que se firme una nueva membresía.`
+    : `le quedan <strong>${remaining} operaciones</strong> de ${data.annualUsageLimit} en su período de membresía.
+      Conforme a la cláusula 2.4 del Contrato, corresponde comunicarle si desea gestionar una nueva membresía.`;
 
   const content = `
     <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${title}</h2>
@@ -631,13 +640,13 @@ export async function sendUsageQuotaEmail(data: UsageQuotaAlertData): Promise<bo
           <td style="padding: 8px 0; color: #78350f; font-size: 14px; font-weight: 600;">${remaining}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Periodo de membresia</td>
+          <td style="padding: 8px 0; color: #92400e; font-size: 14px;">Período de membresía</td>
           <td style="padding: 8px 0; color: #78350f; font-size: 14px;">${data.periodStart.toLocaleDateString("es-DO")} - ${data.periodEnd.toLocaleDateString("es-DO")}</td>
         </tr>
       </table>
     </div>
 
-    <a href="${appUrl()}/admin/alerts" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/admin/alerts" style="display: inline-block; background-color: #001D41; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       Ver alertas
     </a>
   `;
@@ -667,24 +676,24 @@ interface LowQuotaMemberNoticeData {
 /** Notice to the titular when few operations remain (Contrato 2.4). */
 export async function sendLowQuotaMemberNotice(data: LowQuotaMemberNoticeData): Promise<boolean> {
   const content = `
-    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Aviso de su membresia</h2>
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Aviso de su membresía</h2>
     <p style="margin: 0 0 16px; color: #52525b; font-size: 16px; line-height: 1.6;">
       Estimado(a) ${escapeHtml(data.memberName)}:
     </p>
     <p style="margin: 0 0 16px; color: #52525b; font-size: 16px; line-height: 1.6;">
-      Le informamos que a su membresia del helipuerto le quedan <strong>${data.remaining} operaciones</strong>
-      de las ${data.annualUsageLimit} incluidas en su periodo vigente, que finaliza el
+      Le informamos que a su membresía del helipuerto le quedan <strong>${data.remaining} operaciones</strong>
+      de las ${data.annualUsageLimit} incluidas en su período vigente, que finaliza el
       ${data.periodEnd.toLocaleDateString("es-DO")}.
     </p>
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
-      Una vez agotadas las operaciones incluidas, cesa el derecho a solicitar nuevas reservas (clausula 2.4
-      del Contrato de Membresia). Le agradeceremos indicarnos si desea gestionar una nueva membresia.
+      Una vez agotadas las operaciones incluidas, cesa el derecho a solicitar nuevas reservas (cláusula 2.4
+      del Contrato de Membresía). Le agradeceremos indicarnos si desea gestionar una nueva membresía.
     </p>
   `;
 
   return sendEmail({
     to: data.to,
-    subject: `Aviso: quedan ${data.remaining} operaciones en su membresia`,
+    subject: `Aviso: quedan ${data.remaining} operaciones en su membresía`,
     html: baseTemplate(content),
     type: "low_quota_notice",
   });
@@ -709,7 +718,7 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<b
     : "";
   
   const content = `
-    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${t("emails.bookingConfirmed", locale)} ✅</h2>
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${t("emails.bookingConfirmed", locale)}</h2>
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
       ${t("emails.bookingConfirmedGreeting", locale, { userName: data.userName })}
     </p>
@@ -718,19 +727,19 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<b
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #71717a; font-size: 14px;">📅 ${t("emails.date", locale)}</span><br>
+            <span style="color: #71717a; font-size: 14px;">${t("emails.date", locale)}</span><br>
             <span style="color: #18181b; font-size: 16px; font-weight: 600;">${data.date}</span>
           </td>
         </tr>
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #71717a; font-size: 14px;">🕐 ${t("emails.time", locale)}</span><br>
+            <span style="color: #71717a; font-size: 14px;">${t("emails.time", locale)}</span><br>
             <span style="color: #18181b; font-size: 16px; font-weight: 600;">${data.startTime} - ${data.endTime}</span>
           </td>
         </tr>
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #71717a; font-size: 14px;">📝 ${t("emails.purpose", locale)}</span><br>
+            <span style="color: #71717a; font-size: 14px;">${t("emails.purpose", locale)}</span><br>
             <span style="color: #18181b; font-size: 16px;">${data.purpose}</span>
           </td>
         </tr>
@@ -743,14 +752,14 @@ export async function sendBookingConfirmation(data: BookingEmailData): Promise<b
       ${t("emails.needChanges", locale)}
     </p>
     
-    <a href="${appUrl()}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/bookings/my-bookings" style="display: inline-block; background-color: #001D41; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.viewMyBookings", locale)}
     </a>
   `;
 
   return sendEmail({
     to: data.userEmail,
-    subject: `✅ ${t("emails.bookingConfirmed", locale)} - ${data.date}`,
+    subject: `${t("emails.bookingConfirmed", locale)} - ${data.date}`,
     html: baseTemplate(content),
     userId: data.userId,
     bookingId: data.bookingId,
@@ -771,13 +780,13 @@ export async function sendBookingCancellation(data: BookingEmailData): Promise<b
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #991b1b; font-size: 14px;">📅 ${t("emails.date", locale)}</span><br>
+            <span style="color: #991b1b; font-size: 14px;">${t("emails.date", locale)}</span><br>
             <span style="color: #7f1d1d; font-size: 16px; font-weight: 600; text-decoration: line-through;">${data.date}</span>
           </td>
         </tr>
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #991b1b; font-size: 14px;">🕐 ${t("emails.time", locale)}</span><br>
+            <span style="color: #991b1b; font-size: 14px;">${t("emails.time", locale)}</span><br>
             <span style="color: #7f1d1d; font-size: 16px; font-weight: 600; text-decoration: line-through;">${data.startTime} - ${data.endTime}</span>
           </td>
         </tr>
@@ -788,7 +797,7 @@ export async function sendBookingCancellation(data: BookingEmailData): Promise<b
       ${t("emails.timeslotAvailable", locale)}
     </p>
     
-    <a href="${appUrl()}/bookings/calendar" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/bookings/calendar" style="display: inline-block; background-color: #001D41; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.bookNewSlot", locale)}
     </a>
   `;
@@ -807,7 +816,7 @@ export async function sendBookingReminder(data: BookingEmailData): Promise<boole
   const locale = data.locale || "en";
   
   const content = `
-    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${t("emails.upcomingBookingReminder", locale)} 🔔</h2>
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${t("emails.upcomingBookingReminder", locale)}</h2>
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
       ${t("emails.reminderMessage", locale, { userName: data.userName })}
     </p>
@@ -816,33 +825,33 @@ export async function sendBookingReminder(data: BookingEmailData): Promise<boole
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #92400e; font-size: 14px;">📅 ${t("emails.date", locale)}</span><br>
+            <span style="color: #92400e; font-size: 14px;">${t("emails.date", locale)}</span><br>
             <span style="color: #78350f; font-size: 16px; font-weight: 600;">${data.date}</span>
           </td>
         </tr>
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #92400e; font-size: 14px;">🕐 ${t("emails.time", locale)}</span><br>
+            <span style="color: #92400e; font-size: 14px;">${t("emails.time", locale)}</span><br>
             <span style="color: #78350f; font-size: 16px; font-weight: 600;">${data.startTime} - ${data.endTime}</span>
           </td>
         </tr>
         <tr>
           <td style="padding: 8px 0;">
-            <span style="color: #92400e; font-size: 14px;">📝 ${t("emails.purpose", locale)}</span><br>
+            <span style="color: #92400e; font-size: 14px;">${t("emails.purpose", locale)}</span><br>
             <span style="color: #78350f; font-size: 16px;">${data.purpose}</span>
           </td>
         </tr>
       </table>
     </div>
     
-    <a href="${appUrl()}/bookings/my-bookings" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}/bookings/my-bookings" style="display: inline-block; background-color: #001D41; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${t("emails.viewBookingDetails", locale)}
     </a>
   `;
 
   return sendEmail({
     to: data.userEmail,
-    subject: `🔔 ${t("emails.upcomingBookingReminder", locale)} - ${data.date}`,
+    subject: `${t("emails.upcomingBookingReminder", locale)} - ${data.date}`,
     html: baseTemplate(content),
     userId: data.userId,
     bookingId: data.bookingId,
@@ -884,7 +893,7 @@ function detailsTable(rows: Array<[string, string | null | undefined]>): string 
 
 function actionButton(path: string, label: string): string {
   return `
-    <a href="${appUrl()}${path}" style="display: inline-block; background: linear-gradient(135deg, #18181b 0%, #3f3f46 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+    <a href="${appUrl()}${path}" style="display: inline-block; background-color: #001D41; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;">
       ${label}
     </a>`;
 }
@@ -919,10 +928,10 @@ export interface TeamBookingData {
 function bookingRows(data: TeamBookingData): Array<[string, string | null | undefined]> {
   return [
     ["Fecha y hora", formatHelipadDateTime(data.startTime)],
-    ["Matricula", data.helicopterRegistration],
+    ["Matrícula", data.helicopterRegistration],
     ["Piloto", data.pilotName],
     ["Registrada por", data.requester],
-    ["Proposito", data.purpose],
+    ["Propósito", data.purpose],
   ];
 }
 
@@ -934,7 +943,7 @@ export async function sendRuleExceptionEmail(
   const content = `
     <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Reserva con excepciones al Reglamento</h2>
     <p style="margin: 0 0 24px; color: #52525b; font-size: 16px; line-height: 1.6;">
-      Se registro una reserva ${data.status === "confirmed" ? "confirmada" : "pendiente de aprobacion"} con las
+      Se registró una reserva ${data.status === "confirmed" ? "confirmada" : "pendiente de aprobación"} con las
       siguientes excepciones: <strong>${escapeHtml(labels)}</strong>. La reserva no se bloquea; queda
       registrada para su seguimiento.
     </p>
@@ -958,19 +967,19 @@ export async function sendRuleExceptionEmail(
 export async function sendLateCancellationEmail(
   data: TeamBookingData & { kind: "late_cancellation" | "no_show"; count: number; repeatThreshold: number }
 ): Promise<boolean> {
-  const what = data.kind === "no_show" ? "Inasistencia a una reserva" : "Cancelacion tardia";
+  const what = data.kind === "no_show" ? "Inasistencia a una reserva" : "Cancelación tardía";
   const repeated = data.count >= data.repeatThreshold;
   const fact =
     data.kind === "no_show"
-      ? "El personal del helipuerto registro que la reserva confirmada no se presento."
-      : "La reserva confirmada se cancelo con menos antelacion que la permitida por el Art. 6.4 del Reglamento.";
+      ? "El personal del helipuerto registró que la reserva confirmada no se presentó."
+      : "La reserva confirmada se canceló con menos antelación que la permitida por el Art. 6.4 del Reglamento.";
   const countText = data.helicopterRegistration
-    ? ` La matricula <strong>${escapeHtml(data.helicopterRegistration)}</strong> suma
-      <strong>${data.count}</strong> cancelaciones tardias o inasistencias en los ultimos 12 meses.`
+    ? ` La matrícula <strong>${escapeHtml(data.helicopterRegistration)}</strong> suma
+      <strong>${data.count}</strong> cancelaciones tardías o inasistencias en los últimos 12 meses.`
     : "";
   const repeatedText = repeated
-    ? ` Con ${data.repeatThreshold} o mas en un mismo periodo, el Art. 6.4 faculta a aplicar las medidas del
-      Capitulo VIII.`
+    ? ` Con ${data.repeatThreshold} o más en un mismo período, el Art. 6.4 faculta a aplicar las medidas del
+      Capítulo VIII.`
     : "";
   const content = `
     <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${what}${repeated ? " (reiterada)" : ""}</h2>
@@ -1003,31 +1012,31 @@ export async function sendUnauthorizedOperationEmail(data: {
   const fact =
     data.kind === "no_booking" ? "sin reserva confirmada" : "fuera de la franja horaria de su reserva confirmada";
   const content = `
-    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Operacion sin reserva registrada</h2>
+    <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">Operación sin reserva registrada</h2>
     <p style="margin: 0 0 16px; color: #52525b; font-size: 16px; line-height: 1.6;">
-      El personal del helipuerto registro una operacion de la aeronave
-      <strong>${escapeHtml(data.helicopterRegistration)}</strong> ${fact}. El registro indica que no se trato
+      El personal del helipuerto registró una operación de la aeronave
+      <strong>${escapeHtml(data.helicopterRegistration)}</strong> ${fact}. El registro indica que no se trató
       de una emergencia.
     </p>
     ${detailsTable([
       ["Fecha y hora", formatHelipadDateTime(data.occurredAt)],
-      ["Matricula", data.helicopterRegistration],
+      ["Matrícula", data.helicopterRegistration],
       ["Piloto", data.pilotName],
-      ["Descripcion", data.description],
+      ["Descripción", data.description],
       ["Registrado por", data.reportedBy],
-      ["Registros previos de esta matricula", String(data.priorCount)],
+      ["Registros previos de esta matrícula", String(data.priorCount)],
     ])}
     <p style="margin: 0 0 24px; color: #52525b; font-size: 14px; line-height: 1.6;">
-      Art. 24.3 del Reglamento: ante la primera operacion no autorizada corresponde una advertencia escrita al
-      miembro, con copia al operador aereo y al piloto al mando; en caso de reincidencia, el operador puede poner
-      el hecho en conocimiento del IDAC. Toda comunicacion debe reportar el hecho, sin calificarlo como infraccion.
+      Art. 24.3 del Reglamento: ante la primera operación no autorizada corresponde una advertencia escrita al
+      miembro, con copia al operador aéreo y al piloto al mando; en caso de reincidencia, el operador puede poner
+      el hecho en conocimiento del IDAC. Toda comunicación debe reportar el hecho, sin calificarlo como infracción.
     </p>
     ${actionButton("/admin/alerts", "Revisar registro")}
   `;
   return sendTeamAlert(
     "unauthorized_operation",
     "unauthorized_operation_alert",
-    `Operacion sin reserva - ${data.helicopterRegistration}`,
+    `Operación sin reserva - ${data.helicopterRegistration}`,
     content
   );
 }
@@ -1040,7 +1049,7 @@ export async function sendBookingActivityEmail(
   const content = `
     <h2 style="margin: 0 0 16px; color: #18181b; font-size: 20px;">${title}</h2>
     ${detailsTable(bookingRows(data))}
-    ${actionButton("/admin/operation", "Ver operacion del dia")}
+    ${actionButton("/admin/operation", "Ver operación del día")}
   `;
   const subjectParts = [title, data.helicopterRegistration, formatHelipadDateTime(data.startTime)];
   return sendTeamAlert(

@@ -5,7 +5,8 @@ import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { 
   Search, 
-  Download, 
+  Download,
+  Loader2,
   RefreshCw, 
   Calendar,
   Filter,
@@ -46,6 +47,8 @@ export default function AdminBookingsPage() {
   const [status, setStatus] = useState<string>("");
   const [page, setPage] = useState(1);
   const [selectedBookingDetails, setSelectedBookingDetails] = useState<any | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const utils = trpc.useUtils();
 
   const { data, isLoading, refetch } = trpc.bookings.listAll.useQuery({
     startDate: startDate ? new Date(startDate).toISOString() : undefined,
@@ -109,8 +112,32 @@ export default function AdminBookingsPage() {
     },
   });
 
-  const handleExportCSV = () => {
-    if (!data?.bookings) return;
+  // Exports every booking matching the filters, not just the page on screen (the list is paginated)
+  const handleExportCSV = async () => {
+    const filters = {
+      startDate: startDate ? new Date(startDate).toISOString() : undefined,
+      endDate: endDate ? new Date(endDate).toISOString() : undefined,
+      status: (status as "pending" | "confirmed" | "cancelled") || undefined,
+    };
+
+    setIsExporting(true);
+    const allBookings: NonNullable<typeof data>["bookings"] = [];
+    try {
+      for (let exportPage = 1; ; exportPage++) {
+        const result = await utils.bookings.listAll.fetch({ ...filters, page: exportPage, limit: 100 });
+        allBookings.push(...result.bookings);
+        if (exportPage >= result.pagination.totalPages) break;
+      }
+    } catch (error) {
+      toast({
+        type: "error",
+        title: t("errors.generic"),
+        description: translateError(error instanceof Error ? error.message : String(error)),
+      });
+      return;
+    } finally {
+      setIsExporting(false);
+    }
 
     const headers = [
       "ID",
@@ -125,21 +152,24 @@ export default function AdminBookingsPage() {
       "Created At",
     ];
 
-    const rows = data.bookings.map((booking) => [
+    const rows = allBookings.map((booking) => [
       booking.id,
       booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : "N/A",
       booking.user?.email ?? "N/A",
       format(new Date(booking.startTime!), "yyyy-MM-dd"),
       format(new Date(booking.startTime!), "HH:mm"),
       format(new Date(booking.endTime!), "HH:mm"),
-      `"${booking.purpose?.replace(/"/g, '""') ?? ""}"`,
+      booking.purpose ?? "",
       booking.helicopterRegistration ?? "",
       booking.status,
       format(new Date(booking.createdAt!), "yyyy-MM-dd HH:mm"),
     ]);
 
-    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    // Quote every field that needs it (names and purposes may contain commas or quotes)
+    const csvField = (value: string) => (/[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
+    const csv = [headers, ...rows].map((r) => r.map(csvField).join(",")).join("\r\n");
+    // UTF-8 BOM so Excel shows accents correctly
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -150,7 +180,7 @@ export default function AdminBookingsPage() {
     toast({
       type: "success",
       title: t("adminBookings.exportComplete"),
-      description: t("adminBookings.exportedBookings", { count: data.bookings.length.toString() }),
+      description: t("adminBookings.exportedBookings", { count: allBookings.length.toString() }),
     });
   };
 
@@ -180,8 +210,8 @@ export default function AdminBookingsPage() {
             <RefreshCw className="w-4 h-4" />
             {t("common.refresh")}
           </Button>
-          <Button onClick={handleExportCSV} disabled={bookings.length === 0}>
-            <Download className="w-4 h-4" />
+          <Button onClick={handleExportCSV} disabled={bookings.length === 0 || isExporting}>
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {t("common.exportCSV")}
           </Button>
         </div>
